@@ -1,0 +1,31 @@
+{
+  "requestId": "req-step1-verify",
+  "approvedDesignVersion": 1,
+  "description": "19-segment hexagonal gold honeycomb optical mirror array with chamfered dark titanium bezel, 4 glowing blue corner alignment fiducials, and rear carbon-composite truss dual-axis gimbal mount.",
+  "sourceImagePath": "artifacts/designs/design-hex-v1.png",
+  "generationMethod": "agy-cli:gemini-3.8-flash-low@h2gdm-hack26icn-2676",
+  "createdAt": "2026-10-16T03:54:37.388Z",
+  "elapsedMs": 57077,
+  "glbByteLength": 357560,
+  "metrics": {
+    "meshCount": 60,
+    "vertexCount": 8207,
+    "triangleCount": 9392,
+    "boundingBox": {
+      "width": 1.785,
+      "height": 1.785,
+      "depth": 0.813
+    },
+    "opticalNormalLocal": [
+      0,
+      0,
+      1
+    ],
+    "geometryHash": "c659c4401a432166"
+  },
+  "files": {
+    "codeUrl": "/artifacts/models/req-step1-verify-v1.mjs",
+    "glbUrl": "/artifacts/models/req-step1-verify-v1.glb",
+    "metaUrl": "/artifacts/models/req-step1-verify-v1.json"
+  }
+}

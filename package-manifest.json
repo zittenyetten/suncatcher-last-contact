@@ -1,0 +1,283 @@
+{
+  "project": "Suncatcher: Last Contact",
+  "team": "Argon",
+  "kind": "sanitized-source-candidate-not-final",
+  "copyStartedUtc": "2026-10-16T06:20:28.99Z",
+  "copyFinishedUtc": "2026-10-16T06:20:29.255Z",
+  "activeEditsPossible": true,
+  "sourceChangedDuringCopy": [],
+  "files": [
+    {
+      "path": ".dockerignore",
+      "bytes": 126,
+      "sha256": "8188f76ca363575a71f3f0721aff1b4bee2d222f5d62d23e24eebe1b51277696",
+      "packagingEdits": [
+        "Generated submission preparation file."
+      ]
+    },
+    {
+      "path": ".env.example",
+      "bytes": 196,
+      "sha256": "18c520a5706d3796e7e7e69973e6ea178cd9287b4496019548b10325b6ed2232",
+      "packagingEdits": [
+        "Generated submission preparation file."
+      ]
+    },
+    {
+      "path": ".gcloudignore",
+      "bytes": 133,
+      "sha256": "e964ce3f65916486ab650b8e7a22842513a8cc3646a026943e04bb85d1b608b7",
+      "packagingEdits": [
+        "Generated submission preparation file."
+      ]
+    },
+    {
+      "path": ".gitignore",
+      "bytes": 133,
+      "sha256": "d11df373dc4f576455588573b65b4e3d779c8dc0fc893f361c3069179a9666aa",
+      "packagingEdits": [
+        "Generated submission preparation file."
+      ]
+    },
+    {
+      "path": "artifacts/designs/design-hex-v1.png",
+      "bytes": 1562181,
+      "sha256": "b3b97fcbcd9eb40714bcf3cfb005994ad8fe658cd0a744453bde4f3d9f40c3b2",
+      "sourceSha256": "b3b97fcbcd9eb40714bcf3cfb005994ad8fe658cd0a744453bde4f3d9f40c3b2",
+      "sourceModifiedUtc": "2026-10-16T03:41:13.755Z",
+      "packagingEdits": []
+    },
+    {
+      "path": "artifacts/designs/design-petal-v2.png",
+      "bytes": 1716403,
+      "sha256": "727671a12b08dc16d12dd5c90a2e903abb45f637ea0c45a027592c3e7c3d47d3",
+      "sourceSha256": "727671a12b08dc16d12dd5c90a2e903abb45f637ea0c45a027592c3e7c3d47d3",
+      "sourceModifiedUtc": "2026-10-16T03:55:57.383Z",
+      "packagingEdits": []
+    },
+    {
+      "path": "artifacts/models/req-1792123704566-djq7-v2.glb",
+      "bytes": 500908,
+      "sha256": "f0b25dcc1faf7ed1a5466cf8b1e5634a05f0511db459ffee0b2f938bc5ccc9d7",
+      "sourceSha256": "f0b25dcc1faf7ed1a5466cf8b1e5634a05f0511db459ffee0b2f938bc5ccc9d7",
+      "sourceModifiedUtc": "2026-10-16T04:10:03.913Z",
+      "packagingEdits": []
+    },
+    {
+      "path": "artifacts/models/req-1792123704566-djq7-v2.mjs",
+      "bytes": 11369,
+      "sha256": "46e9cac828cff2c4181dc42ba1caee3130d9d7983661aa9735ad84fb21a09ee7",
+      "sourceSha256": "46e9cac828cff2c4181dc42ba1caee3130d9d7983661aa9735ad84fb21a09ee7",
+      "sourceModifiedUtc": "2026-10-16T04:10:03.913Z",
+      "packagingEdits": []
+    },
+    {
+      "path": "artifacts/models/req-step1-verify-v1.glb",
+      "bytes": 357560,
+      "sha256": "4173dd5c68f239ae4eee14ded3756b556d8123c6e9052c7664d82e95ea4c2e2e",
+      "sourceSha256": "4173dd5c68f239ae4eee14ded3756b556d8123c6e9052c7664d82e95ea4c2e2e",
+      "sourceModifiedUtc": "2026-10-16T03:54:37.39Z",
+      "packagingEdits": []
+    },
+    {
+      "path": "artifacts/models/req-step1-verify-v1.json",
+      "bytes": 990,
+      "sha256": "0738fac4f93e595cd1bdde9a3ed26d181bca8992c5cf9dad3fa67e1e92eb181a",
+      "sourceSha256": "0738fac4f93e595cd1bdde9a3ed26d181bca8992c5cf9dad3fa67e1e92eb181a",
+      "sourceModifiedUtc": "2026-10-16T03:54:37.401Z",
+      "packagingEdits": []
+    },
+    {
+      "path": "artifacts/models/req-step1-verify-v1.mjs",
+      "bytes": 13277,
+      "sha256": "87e0965b310757995df431b5c55a7476e4f7b8f178815d9a4c48f633eaf65f64",
+      "sourceSha256": "87e0965b310757995df431b5c55a7476e4f7b8f178815d9a4c48f633eaf65f64",
+      "sourceModifiedUtc": "2026-10-16T03:54:37.39Z",
+      "packagingEdits": []
+    },
+    {
+      "path": "Dockerfile",
+      "bytes": 305,
+      "sha256": "e3dd962969580698385b09edbb75d0088b3a91a89107da2489079408812b9de7",
+      "sourceSha256": "e3dd962969580698385b09edbb75d0088b3a91a89107da2489079408812b9de7",
+      "sourceModifiedUtc": "2026-10-16T04:06:17.058Z",
+      "packagingEdits": []
+    },
+    {
+      "path": "package-lock.json",
+      "bytes": 37826,
+      "sha256": "884cebbf4ce5e7e043e7fca74d8cc5d041f22f3637e803abc3834d0c79cfeaff",
+      "sourceSha256": "884cebbf4ce5e7e043e7fca74d8cc5d041f22f3637e803abc3834d0c79cfeaff",
+      "sourceModifiedUtc": "2026-10-16T03:44:51.698Z",
+      "packagingEdits": []
+    },
+    {
+      "path": "PACKAGE-NOTES.md",
+      "bytes": 2348,
+      "sha256": "0c84cce5c0c239a07b80d321a795ad0b1b5b15d7d8fa6cc89109fd22778f0c73",
+      "packagingEdits": [
+        "Generated submission preparation file."
+      ]
+    },
+    {
+      "path": "package.json",
+      "bytes": 602,
+      "sha256": "ce307722627dc63737f8af35d7522fd1ea14c1a0804dd7f9ae898679fcc5286b",
+      "sourceSha256": "ce307722627dc63737f8af35d7522fd1ea14c1a0804dd7f9ae898679fcc5286b",
+      "sourceModifiedUtc": "2026-10-16T03:44:27.452Z",
+      "packagingEdits": []
+    },
+    {
+      "path": "public/audio/lyria-bgm-latest.mp3",
+      "bytes": 704532,
+      "sha256": "566dc4b6b09f0026dfc0389d797041288b76f9b1592382388b1433f768510f14",
+      "sourceSha256": "566dc4b6b09f0026dfc0389d797041288b76f9b1592382388b1433f768510f14",
+      "sourceModifiedUtc": "2026-10-16T05:34:33.747Z",
+      "packagingEdits": []
+    },
+    {
+      "path": "public/audio/orbital-dawn-bgm.wav",
+      "bytes": 2822444,
+      "sha256": "0d4d2a5cb08768b01efb7763016dfa856e5d8a2e698edc0c7e49e13be64699c3",
+      "sourceSha256": "0d4d2a5cb08768b01efb7763016dfa856e5d8a2e698edc0c7e49e13be64699c3",
+      "sourceModifiedUtc": "2026-10-16T04:43:42.772Z",
+      "packagingEdits": []
+    },
+    {
+      "path": "public/game.js",
+      "bytes": 133627,
+      "sha256": "4c3888a8d2add2948e39411f9049abd1d940824e964876f53d73f900272acb71",
+      "sourceSha256": "4c3888a8d2add2948e39411f9049abd1d940824e964876f53d73f900272acb71",
+      "sourceModifiedUtc": "2026-10-16T06:20:04.741Z",
+      "packagingEdits": []
+    },
+    {
+      "path": "public/i18n.js",
+      "bytes": 28606,
+      "sha256": "1b2edc5c0b61d5646d2ea3c93ece239f72f0a13c96c3f4e24827428401229304",
+      "sourceSha256": "1b2edc5c0b61d5646d2ea3c93ece239f72f0a13c96c3f4e24827428401229304",
+      "sourceModifiedUtc": "2026-10-16T06:00:54.442Z",
+      "packagingEdits": []
+    },
+    {
+      "path": "public/index.html",
+      "bytes": 52732,
+      "sha256": "83bbfc46faa91a9296813580fd9ac41944623d881c0fd64f68385f70e531edb8",
+      "sourceSha256": "83bbfc46faa91a9296813580fd9ac41944623d881c0fd64f68385f70e531edb8",
+      "sourceModifiedUtc": "2026-10-16T06:04:09.556Z",
+      "packagingEdits": []
+    },
+    {
+      "path": "README.md",
+      "bytes": 5539,
+      "sha256": "3443d01895c76879705fb80aeb14f358befa50e947f0af44c84336d07890b786",
+      "packagingEdits": [
+        "Generated submission preparation file.",
+        "Added verified public source repository URL before initial publication."
+      ]
+    },
+    {
+      "path": "scripts/generate-bgm-asset.mjs",
+      "bytes": 5712,
+      "sha256": "1930f4193d63597d51122067800abcbd353b204cbe0c08c15336199fd4701731",
+      "sourceSha256": "1930f4193d63597d51122067800abcbd353b204cbe0c08c15336199fd4701731",
+      "sourceModifiedUtc": "2026-10-16T05:37:17.612Z",
+      "packagingEdits": []
+    },
+    {
+      "path": "scripts/verify-3d-reflector.mjs",
+      "bytes": 6088,
+      "sha256": "7053f961a28aa83d0650eb828616bfb7dc62aa9124ab348f8d1191ee157805b6",
+      "sourceSha256": "7053f961a28aa83d0650eb828616bfb7dc62aa9124ab348f8d1191ee157805b6",
+      "sourceModifiedUtc": "2026-10-16T03:53:25.312Z",
+      "packagingEdits": []
+    },
+    {
+      "path": "scripts/verify-e2e-gameplay.mjs",
+      "bytes": 10368,
+      "sha256": "8594f45f4607d16131ea74c0d47defacb632855dd2f3096382a18b81a2551b54",
+      "sourceSha256": "8594f45f4607d16131ea74c0d47defacb632855dd2f3096382a18b81a2551b54",
+      "sourceModifiedUtc": "2026-10-16T04:07:36.467Z",
+      "packagingEdits": []
+    },
+    {
+      "path": "scripts/verify-orbit-monitor-59012.mjs",
+      "bytes": 15714,
+      "sha256": "e0f6be0fef289627a180284a15cc3fc8b57031b1e1e84403c14b8f728a09c7a1",
+      "sourceSha256": "92cefe743afddd74fd9d2647d12ff8e4730bce00d6d6aa7a34c958d2e5bdeca7",
+      "sourceModifiedUtc": "2026-10-16T05:52:37.55Z",
+      "packagingEdits": [
+        "Made verification output path relative to checkout."
+      ]
+    },
+    {
+      "path": "scripts/verify-redesign-59012.mjs",
+      "bytes": 8905,
+      "sha256": "f134e3244d098c76d9d0be57bbf86d4ec600954ec37fc4896d74c4baae518ae0",
+      "sourceSha256": "f134e3244d098c76d9d0be57bbf86d4ec600954ec37fc4896d74c4baae518ae0",
+      "sourceModifiedUtc": "2026-10-16T04:57:15.835Z",
+      "packagingEdits": []
+    },
+    {
+      "path": "server/ai-services.mjs",
+      "bytes": 17308,
+      "sha256": "d70eb96918578e9e3200da3ba3bd3d184a7cb00dee2e18817fc8401767b50b24",
+      "sourceSha256": "a3788e6e37b374b6dc39819c6c6d7cbf2c03c17e08f24b585627e17c81d57e4d",
+      "sourceModifiedUtc": "2026-10-16T05:58:56.827Z",
+      "packagingEdits": [
+        "Removed unused personal Antigravity brain directory constant."
+      ]
+    },
+    {
+      "path": "server/app.mjs",
+      "bytes": 18596,
+      "sha256": "a3eb24d70fa04cdc4212a084d0151826bd65c1e10d1a2c51cf2d041313eef9ec",
+      "sourceSha256": "a3eb24d70fa04cdc4212a084d0151826bd65c1e10d1a2c51cf2d041313eef9ec",
+      "sourceModifiedUtc": "2026-10-16T05:58:56.811Z",
+      "packagingEdits": []
+    },
+    {
+      "path": "server/glb-exporter.mjs",
+      "bytes": 6189,
+      "sha256": "25fbbe72543ccccd3d49176d86ee5b79be2bcc93548eaa474965ddda2a41e012",
+      "sourceSha256": "25fbbe72543ccccd3d49176d86ee5b79be2bcc93548eaa474965ddda2a41e012",
+      "sourceModifiedUtc": "2026-10-16T03:45:59.059Z",
+      "packagingEdits": []
+    },
+    {
+      "path": "server/index.mjs",
+      "bytes": 434,
+      "sha256": "d5aa93b98a2481cc0bfa586f991e700f76a5867ecafa3975c7d11ed3ce5ad857",
+      "sourceSha256": "d5aa93b98a2481cc0bfa586f991e700f76a5867ecafa3975c7d11ed3ce5ad857",
+      "sourceModifiedUtc": "2026-10-16T04:44:50.785Z",
+      "packagingEdits": []
+    },
+    {
+      "path": "server/orbit-service.mjs",
+      "bytes": 6867,
+      "sha256": "d406cdb812ec47d80e9908c365ac52e7f7bd97b01f18348c92854662db6a2881",
+      "sourceSha256": "d406cdb812ec47d80e9908c365ac52e7f7bd97b01f18348c92854662db6a2881",
+      "sourceModifiedUtc": "2026-10-16T05:40:01.394Z",
+      "packagingEdits": []
+    },
+    {
+      "path": "server/reflector-3d-generator.mjs",
+      "bytes": 12549,
+      "sha256": "e8e5617b16966fd52cc4a8bf498d5661d2342d4a7546891d9a8d8390f694c637",
+      "sourceSha256": "b463cad825e8038762b3d5486d9f2e025edd09d579c79366781b92548a13a5e7",
+      "sourceModifiedUtc": "2026-10-16T04:45:26.499Z",
+      "packagingEdits": [
+        "Replaced personal Windows executable fallback with portable agy lookup; AGY_BIN override retained."
+      ]
+    },
+    {
+      "path": "tests/qa-boundary.test.mjs",
+      "bytes": 7234,
+      "sha256": "2992754eee097b9e526b54f74e715fe5067b2a5ae3e46ccc7245e2d8a4a2177e",
+      "sourceSha256": "2992754eee097b9e526b54f74e715fe5067b2a5ae3e46ccc7245e2d8a4a2177e",
+      "sourceModifiedUtc": "2026-10-16T05:44:43.776Z",
+      "packagingEdits": []
+    }
+  ],
+  "manifestExcludedFromOwnHash": true
+}
