@@ -1,6 +1,6 @@
 # Publication snapshot
 
-Snapshot began: 2026-10-16T07:17:04.057Z
+Snapshot began: 2026-10-16T07:21:48.863Z
 
 This commit preserves the latest local implementation captured during active development. It is not a claim that all story features pass end-to-end tests or that the Cloud Run revision matches this Git commit. See docs/HANDOVER.md for known issues and validation.
 

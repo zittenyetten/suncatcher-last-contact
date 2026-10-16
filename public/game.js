@@ -1412,6 +1412,18 @@ const idealNormal = new THREE.Vector3()
 const TARGET_YAW_RAD = Math.atan2(idealNormal.x, idealNormal.z);
 const TARGET_PITCH_RAD = -Math.asin(idealNormal.y);
 
+// Ground-Station Pass & Rescue Transmission Config ("마지막 교신 / The Final Transmission")
+// Virtual orbital pass window: [1.05 rad, 1.95 rad] (span = 0.90 rad)
+// At passOrbitRate = 0.020 rad/s, window duration is 45 seconds.
+// Starting at 0.95 rad enters the window at 1.05 rad in 5 seconds!
+const PASS_CONFIG = {
+  passStartRad: 1.05,
+  passEndRad: 1.95,
+  groundAngleRad: 1.50,
+  passOrbitRateRadPerSec: 0.025, // ~36-45s pass window, 4s countdown from 0.95 rad
+  txDurationSec: 10.0, // 10 seconds of locked relay alignment during pass = 100% rescue transmission
+};
+
 // Game & Puzzle State
 const gameState = {
   sessionId: null,
@@ -1433,6 +1445,22 @@ const gameState = {
   commsRestored: false,
   doorOpened: false,
   doorOpenProgress: 0,
+  // Story Mission ("마지막 교신 / The Final Transmission") State
+  hintActive: false,
+  passStarted: false,
+  passActiveMode: false,
+  inPassWindow: false,
+  passRemainingSec: 0,
+  passCountdownSec: 0,
+  passMissed: false,
+  txProgress: 0,
+  txCompleted: false,
+  groundAckReceived: false,
+  returningInProgress: false,
+  returnedToBase: false,
+  userMutedBgm: false,
+  triggeredStoryKeys: new Set(),
+  // Audio & Lyria State
   bgmPlaying: false,
   bgmVolume: 0.42,
   bgmDucked: false,
@@ -1464,6 +1492,76 @@ window.fetch = function (url, options = {}) {
   }
   return rawFetch.call(this, url, opts);
 };
+
+// Explicit 8-State Story Mission Phase Resolver
+// ('briefing' | 'prep_reflector' | 'ready_for_pass' | 'pass_window' | 'transmitting' | 'ground_ack' | 'return_airlock' | 'mission_complete')
+function getCurrentMissionPhase() {
+  if (gameState.returnedToBase) return 'mission_complete';
+  if (gameState.groundAckReceived && gameState.doorOpened) return 'return_airlock';
+  if (gameState.txCompleted) return 'ground_ack';
+  if (gameState.inPassWindow && gameState.receiverAligned && gameState.reflectorMounted) {
+    return 'transmitting';
+  }
+  if (gameState.inPassWindow && gameState.reflectorMounted) {
+    return 'pass_window';
+  }
+  if (gameState.reflectorMounted && gameState.loadedReflectorObject) {
+    return 'ready_for_pass';
+  }
+  if (gameState.designConfirmed || gameState.loadedReflectorObject) {
+    return 'prep_reflector';
+  }
+  return 'briefing';
+}
+
+let lastTelemetrySyncMs = 0;
+function syncMissionTelemetry(force = false) {
+  const nowMs = performance.now();
+  if (!force && nowMs - lastTelemetrySyncMs < 500) return;
+  lastTelemetrySyncMs = nowMs;
+  void fetch('/api/mission/telemetry', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      missionPhase: getCurrentMissionPhase(),
+      reflectorMounted: gameState.reflectorMounted,
+      receiverAligned: gameState.receiverAligned,
+      inPassWindow: gameState.inPassWindow,
+      passRemainingSec: gameState.passRemainingSec,
+      txProgress: Number(gameState.txProgress.toFixed(1)),
+      txCompleted: gameState.txCompleted,
+      groundAckReceived: gameState.groundAckReceived,
+      commsRestored: gameState.commsRestored,
+      doorOpened: gameState.doorOpened,
+      returnedToBase: gameState.returnedToBase,
+      beamErrorDeg: gameState.beamAngleErrorDeg,
+      mountedPitchRad: gameState.mountedPitchRad,
+      mountedYawRad: gameState.mountedYawRad,
+    }),
+  }).catch(() => {});
+}
+
+function getAlignmentDirectionHint() {
+  const t = I18N[gameState.lang]?.alignHint || I18N.ko.alignHint;
+  if (gameState.receiverAligned) return t.aligned;
+  const dYaw = TARGET_YAW_RAD - gameState.mountedYawRad;
+  const dPitch = TARGET_PITCH_RAD - gameState.mountedPitchRad;
+  const yawPart =
+    Math.abs(dYaw) <= 0.035 ? t.yawOk : dYaw > 0 ? t.yawRight : t.yawLeft;
+  const pitchPart =
+    Math.abs(dPitch) <= 0.035 ? t.pitchOk : dPitch > 0 ? t.pitchUp : t.pitchDown;
+  return `${t.prefix} ${yawPart} · ${pitchPart}`;
+}
+
+function triggerStoryLine(storyKey, forceSpeak = false) {
+  if (!forceSpeak && gameState.triggeredStoryKeys.has(storyKey)) return;
+  gameState.triggeredStoryKeys.add(storyKey);
+  const lines = I18N[gameState.lang]?.argon?.storyLines;
+  const text = lines?.[storyKey];
+  if (!text) return;
+  appendDialogueMessage('argon', text);
+  speakArgonText(text, gameState.lang);
+}
 
 // Audio / BGM (Gemini Lyria Multi-Track Playlist with Auto-Advance, Background Random Gen & Speech Ducking)
 const bgmAudio = new Audio('/audio/lyria-bgm-latest.mp3');
@@ -1497,6 +1595,7 @@ function setBgmDucked(ducked) {
 }
 
 async function ensureBgmPlaying() {
+  if (gameState.userMutedBgm) return;
   bgmAudio.loop = !gameState.bgmPlaylistMode;
   if (!gameState.bgmPlaying) {
     try {
@@ -1509,7 +1608,7 @@ async function ensureBgmPlaying() {
   }
 }
 
-// Compute 3D Optical Reflection & Synchronize Beam + Receiver + Gate State
+// Compute 3D Optical Reflection & Synchronize Beam + Station Uplink Relay + Airlock State
 function updateOpticalPuzzle() {
   // Even before the new 3D reflector is mounted, show the damaged bracket's scattered off-target beam!
   if (!gameState.reflectorMounted || !gameState.loadedReflectorObject) {
@@ -1558,9 +1657,9 @@ function updateOpticalPuzzle() {
     : MOUNT_POS.clone().add(reflectedDir.clone().multiplyScalar(distToReceiver + 1.2));
 
   reflectedBeam.group.visible = true;
-  reflectedBeam.haloMat.opacity = aligned ? 0.52 : 0.34;
+  reflectedBeam.haloMat.opacity = aligned ? 0.54 : 0.34;
 
-  // Smooth proximity feedback as the player gets closer to the receiver
+  // Smooth proximity feedback as the player gets closer to the Station Uplink Relay
   if (aligned) {
     reflectedBeam.coreMat.color.setHex(0xa7f3d0);
     reflectedBeam.haloMat.color.setHex(0x10b981);
@@ -1594,8 +1693,6 @@ function updateOpticalPuzzle() {
   if (aligned) {
     const wasAligned = gameState.receiverAligned;
     gameState.receiverAligned = true;
-    gameState.commsRestored = true;
-    gameState.doorOpened = true;
     gameState.receiverColorHex = '#06d6a0';
     receiverSensorMat.color.setHex(0x06d6a0);
     receiverSensorMat.emissive.setHex(0x10b981);
@@ -1603,35 +1700,13 @@ function updateOpticalPuzzle() {
     receiverRingMat.emissive.setHex(0x059669);
     receiverGlowLight.color.setHex(0x10b981);
     receiverGlowLight.intensity = 4.5;
-    doorBeaconMat.color.setHex(0x10b981);
-    doorBeaconMat.emissive.setHex(0x059669);
-    interiorBayCore.material.opacity = 0.72;
-    interiorBayLight.intensity = 4.2;
 
     if (!wasAligned) {
-      gameState.reviewingAlignAfterComplete = false;
-      animateCameraToPreset('completeView', 0.8);
-      void fetch('/api/mission/telemetry', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          reflectorMounted: true,
-          receiverAligned: true,
-          commsRestored: true,
-          doorOpened: true,
-          beamErrorDeg: gameState.beamAngleErrorDeg,
-          mountedPitchRad: gameState.mountedPitchRad,
-          mountedYawRad: gameState.mountedYawRad,
-        }),
-      });
+      triggerStoryLine('relayLocked');
+      syncMissionTelemetry(true);
     }
   } else {
     gameState.receiverAligned = false;
-    gameState.commsRestored = false;
-    gameState.doorOpened = false;
-    gameState.doorOpenProgress = 0;
-    leftDoorPanel.position.x = -0.96;
-    rightDoorPanel.position.x = 0.96;
     gameState.receiverColorHex = '#ff2a55';
     receiverSensorMat.color.setHex(0xff2a55);
     receiverSensorMat.emissive.setHex(0xff1e42);
@@ -1639,6 +1714,22 @@ function updateOpticalPuzzle() {
     receiverRingMat.emissive.setHex(0xe11d48);
     receiverGlowLight.color.setHex(0xf43f5e);
     receiverGlowLight.intensity = 2.4;
+  }
+
+  // Airlock & Interior Bay only unlock AFTER Ground Control ACK is received!
+  if (gameState.groundAckReceived) {
+    gameState.commsRestored = true;
+    gameState.doorOpened = true;
+    doorBeaconMat.color.setHex(0x10b981);
+    doorBeaconMat.emissive.setHex(0x059669);
+    interiorBayCore.material.opacity = 0.78;
+    interiorBayLight.intensity = 4.5;
+  } else {
+    gameState.commsRestored = false;
+    gameState.doorOpened = false;
+    gameState.doorOpenProgress = 0;
+    leftDoorPanel.position.x = -0.96;
+    rightDoorPanel.position.x = 0.96;
     doorBeaconMat.color.setHex(0xf43f5e);
     doorBeaconMat.emissive.setHex(0xe11d48);
     interiorBayCore.material.opacity = 0.15;
@@ -1671,11 +1762,19 @@ function updateAngleReadout() {
     fillEl.style.width = `${pct}%`;
   }
 
-  if (pillEl) {
+  if (pillEl && t?.stageCards) {
     pillEl.textContent = gameState.receiverAligned
       ? t.stageCards.beamLockedBadge
       : t.stageCards.beamSearchingBadge;
     pillEl.className = `badge ${gameState.receiverAligned ? 'badge-ok' : 'badge-warn'}`;
+  }
+
+  const hintBanner = document.getElementById('align-hint-banner');
+  if (hintBanner) {
+    hintBanner.classList.toggle('visible', Boolean(gameState.hintActive));
+    if (gameState.hintActive) {
+      hintBanner.textContent = getAlignmentDirectionHint();
+    }
   }
 
   const yawValEl = document.getElementById('yaw-val-text');
@@ -1733,6 +1832,8 @@ function mountActiveReflectorOnPedestal() {
   gameState.designDrawerOpen = false;
   animateCameraToPreset('alignFocus', 0.7);
   updateOpticalPuzzle();
+  triggerStoryLine('mounted');
+  syncMissionTelemetry(true);
   return true;
 }
 
@@ -1792,12 +1893,7 @@ function speakArgonText(text, lang = gameState.lang) {
 
 // Determine Active UI Stage ('design' | 'generate' | 'mount' | 'align' | 'completed')
 function getCurrentUiStage() {
-  if (
-    gameState.receiverAligned &&
-    gameState.commsRestored &&
-    gameState.doorOpened &&
-    !gameState.reviewingAlignAfterComplete
-  ) {
+  if (gameState.returnedToBase && !gameState.reviewingAlignAfterComplete) {
     return 'completed';
   }
   if (gameState.reflectorMounted && gameState.loadedReflectorObject) {
@@ -1820,10 +1916,15 @@ function updateSceneHintText() {
   const t = I18N[gameState.lang];
   const hintEl = document.getElementById('mouse-hint-pill');
   const lblMonitor = document.getElementById('label-orbit-monitor');
+  const lblAirlock = document.getElementById('label-airlock');
   const isMonitorHovered = player.hoverTarget === 'monitor';
+  const isAirlockHovered = player.hoverTarget === 'airlock';
 
   if (lblMonitor) {
     lblMonitor.classList.toggle('hovered', isMonitorHovered);
+  }
+  if (lblAirlock) {
+    lblAirlock.classList.toggle('open-ready', Boolean(gameState.doorOpened));
   }
   monitorBezelMat.emissiveIntensity = isMonitorHovered ? 2.4 : 1.1;
   monitorGlowLight.intensity = isMonitorHovered ? 2.4 : 1.35;
@@ -1831,6 +1932,10 @@ function updateSceneHintText() {
   if (!hintEl) return;
   if (isMonitorHovered) {
     hintEl.textContent = t.mouseHints.hoverMonitor;
+  } else if (isAirlockHovered) {
+    hintEl.textContent = gameState.doorOpened
+      ? t.mouseHints.hoverAirlockOpen
+      : t.mouseHints.hoverAirlockClosed;
   } else if (player.hoverTarget === 'mount') {
     hintEl.textContent = gameState.reflectorMounted
       ? t.mouseHints.hoverMountAlign
@@ -1839,6 +1944,105 @@ function updateSceneHintText() {
     hintEl.textContent = t.mouseHints.hoverArgon;
   } else {
     hintEl.textContent = t.mouseHints.default;
+  }
+}
+
+function updateTransmissionHudElements() {
+  const t = I18N[gameState.lang];
+  if (!t?.txHud) return;
+
+  const titleEl = document.getElementById('ui-tx-title');
+  const badgeEl = document.getElementById('tx-phase-badge');
+  const timerEl = document.getElementById('tx-window-timer');
+  const progValEl = document.getElementById('tx-progress-val');
+  const progFillEl = document.getElementById('tx-progress-fill');
+  const noteEl = document.getElementById('tx-status-note');
+  const ackBanner = document.getElementById('ground-ack-banner');
+  const startPassBtn = document.getElementById('start-pass-btn');
+  const nextPassBtn = document.getElementById('next-pass-btn');
+  const returnBaseBtn = document.getElementById('return-base-btn');
+
+  if (titleEl) titleEl.textContent = t.txHud.boxTitle;
+  const pct = Math.min(100, Math.round(gameState.txProgress));
+  if (progValEl) {
+    progValEl.textContent = `${t.txHud.txProgressLabel}: ${pct}%`;
+  }
+  if (progFillEl) {
+    progFillEl.style.width = `${pct}%`;
+  }
+
+  if (ackBanner) {
+    ackBanner.textContent = t.txHud.ackBannerText;
+    ackBanner.classList.toggle('visible', Boolean(gameState.groundAckReceived));
+  }
+
+  if (startPassBtn) startPassBtn.textContent = t.txHud.startPassBtn;
+  if (nextPassBtn) nextPassBtn.textContent = t.txHud.nextPassBtn;
+  if (returnBaseBtn) returnBaseBtn.textContent = t.txHud.returnBaseBtn;
+
+  if (gameState.groundAckReceived) {
+    if (badgeEl) {
+      badgeEl.textContent = t.txHud.phaseAck;
+      badgeEl.className = 'badge badge-ok';
+    }
+    if (timerEl) timerEl.textContent = 'ACK · 100%';
+    if (noteEl) noteEl.textContent = t.txHud.noteAckReady;
+    if (startPassBtn) startPassBtn.style.display = 'none';
+    if (nextPassBtn) nextPassBtn.style.display = 'none';
+    if (returnBaseBtn) returnBaseBtn.style.display = 'inline-flex';
+  } else if (gameState.inPassWindow) {
+    const rem = Math.max(0, Math.ceil(gameState.passRemainingSec));
+    if (timerEl) timerEl.textContent = `${t.txHud.windowRemaining}: ${rem}s`;
+    if (gameState.receiverAligned) {
+      if (badgeEl) {
+        badgeEl.textContent = t.txHud.phaseTransmitting;
+        badgeEl.className = 'badge badge-ok';
+      }
+      if (noteEl) noteEl.textContent = t.txHud.noteTransmitting;
+    } else {
+      if (badgeEl) {
+        badgeEl.textContent = t.txHud.phaseInWindow;
+        badgeEl.className = 'badge badge-warn';
+      }
+      if (noteEl) {
+        noteEl.textContent =
+          gameState.txProgress > 0 ? t.txHud.notePaused : t.txHud.noteNeedLock;
+      }
+    }
+    if (startPassBtn) startPassBtn.style.display = 'none';
+    if (nextPassBtn) nextPassBtn.style.display = 'none';
+    if (returnBaseBtn) returnBaseBtn.style.display = 'none';
+  } else if (gameState.passMissed) {
+    if (badgeEl) {
+      badgeEl.textContent = t.txHud.phaseMissed;
+      badgeEl.className = 'badge badge-warn';
+    }
+    if (timerEl) timerEl.textContent = '0s';
+    if (noteEl) noteEl.textContent = t.txHud.noteMissed;
+    if (startPassBtn) startPassBtn.style.display = 'none';
+    if (nextPassBtn) nextPassBtn.style.display = 'inline-flex';
+    if (returnBaseBtn) returnBaseBtn.style.display = 'none';
+  } else if (gameState.passStarted) {
+    const cd = Math.max(1, Math.ceil(gameState.passCountdownSec));
+    if (badgeEl) {
+      badgeEl.textContent = t.txHud.phaseApproaching;
+      badgeEl.className = 'badge badge-warn';
+    }
+    if (timerEl) timerEl.textContent = `${t.txHud.windowApproachingIn}: ${cd}s`;
+    if (noteEl) noteEl.textContent = t.txHud.noteReady;
+    if (startPassBtn) startPassBtn.style.display = 'none';
+    if (nextPassBtn) nextPassBtn.style.display = 'none';
+    if (returnBaseBtn) returnBaseBtn.style.display = 'none';
+  } else {
+    if (badgeEl) {
+      badgeEl.textContent = t.txHud.phaseStandby;
+      badgeEl.className = 'badge badge-warn';
+    }
+    if (timerEl) timerEl.textContent = '--s';
+    if (noteEl) noteEl.textContent = t.txHud.noteReady;
+    if (startPassBtn) startPassBtn.style.display = 'inline-flex';
+    if (nextPassBtn) nextPassBtn.style.display = 'none';
+    if (returnBaseBtn) returnBaseBtn.style.display = 'none';
   }
 }
 
@@ -1865,34 +2069,68 @@ function updateHudTranslations() {
   document.getElementById('details-toggle-btn').textContent = t.menu.detailsBtn;
   document.getElementById('reset-cam-btn').textContent = t.menu.centerCamBtn;
 
-  // Step Pills
+  // Step Pills (7 steps including Pass & Return)
   const stage = getCurrentUiStage();
+  const mPhase = getCurrentMissionPhase();
   const stepDesign = document.getElementById('step-pill-design');
   const stepConfirm = document.getElementById('step-pill-confirm');
   const stepGen = document.getElementById('step-pill-generate');
   const stepMount = document.getElementById('step-pill-mount');
   const stepAlign = document.getElementById('step-pill-align');
+  const stepPass = document.getElementById('step-pill-pass');
+  const stepReturn = document.getElementById('step-pill-return');
 
   stepDesign.textContent = t.steps.design;
   stepConfirm.textContent = t.steps.confirm;
   stepGen.textContent = t.steps.generate;
   stepMount.textContent = t.steps.mount;
   stepAlign.textContent = t.steps.align;
+  if (stepPass) stepPass.textContent = t.steps.pass;
+  if (stepReturn) stepReturn.textContent = t.steps.return;
 
   const setPillState = (el, isDone, isActive) => {
+    if (!el) return;
     el.className = `step-pill${isActive ? ' active' : isDone ? ' done' : ''}`;
   };
 
-  setPillState(stepDesign, stage !== 'design' || gameState.designDrawerOpen === false, stage === 'design' && gameState.designDrawerOpen);
-  setPillState(stepConfirm, gameState.designConfirmed, stage === 'design' && !gameState.designDrawerOpen);
+  setPillState(
+    stepDesign,
+    stage !== 'design' || gameState.designDrawerOpen === false,
+    stage === 'design' && gameState.designDrawerOpen
+  );
+  setPillState(
+    stepConfirm,
+    gameState.designConfirmed,
+    stage === 'design' && !gameState.designDrawerOpen
+  );
   setPillState(stepGen, Boolean(gameState.loadedReflectorObject), stage === 'generate');
   setPillState(stepMount, gameState.reflectorMounted, stage === 'mount');
-  setPillState(stepAlign, gameState.receiverAligned, stage === 'align');
+  setPillState(
+    stepAlign,
+    gameState.receiverAligned,
+    stage === 'align' && mPhase === 'ready_for_pass' && !gameState.inPassWindow
+  );
+  setPillState(
+    stepPass,
+    gameState.groundAckReceived,
+    mPhase === 'pass_window' || mPhase === 'transmitting' || gameState.passStarted
+  );
+  setPillState(
+    stepReturn,
+    gameState.returnedToBase,
+    mPhase === 'return_airlock'
+  );
 
   // Objective Single Sentence
   const objText = document.getElementById('mission-phase-text');
-  if (stage === 'completed') {
+  if (stage === 'completed' || mPhase === 'mission_complete') {
     objText.textContent = t.objectives.completed;
+  } else if (mPhase === 'return_airlock') {
+    objText.textContent = t.objectives.returnAirlock;
+  } else if (mPhase === 'transmitting') {
+    objText.textContent = t.objectives.transmitting;
+  } else if (mPhase === 'pass_window') {
+    objText.textContent = t.objectives.passWindow;
   } else if (stage === 'align') {
     objText.textContent = t.objectives.align;
   } else if (stage === 'mount') {
@@ -1937,6 +2175,12 @@ function updateHudTranslations() {
     gameState.approvedDesignVersion || gameState.activeDesignVersion
   );
   document.getElementById('confirm-design-btn').textContent = t.stageCards.confirmDesignBtn;
+  const reuseBtn = document.getElementById('reuse-reflector-btn');
+  if (reuseBtn) {
+    reuseBtn.textContent = t.stageCards.reuseReflectorBtn;
+    reuseBtn.style.display =
+      gameState.activeReflectorMeta && !gameState.reflectorMounted ? 'inline-flex' : 'none';
+  }
   document.getElementById('toggle-design-drawer-btn').textContent = gameState.designDrawerOpen
     ? t.stageCards.closeDesignBtn
     : t.stageCards.openDesignBtn;
@@ -1962,12 +2206,19 @@ function updateHudTranslations() {
   document.getElementById('align-assist-btn').textContent = t.stageCards.snapOptimalBtn;
   document.getElementById('redesign-from-align-btn').textContent = t.stageCards.remountOrRedesignBtn;
 
+  updateAngleReadout();
+  updateTransmissionHudElements();
+
   // Completion Banner
   document.getElementById('ui-complete-badge').textContent = t.completeBanner.badge;
   document.getElementById('ui-complete-title').textContent = t.completeBanner.title;
   document.getElementById('ui-complete-sub').textContent = t.completeBanner.subtitle;
   document.getElementById('complete-adjust-btn').textContent = t.completeBanner.adjustAgainBtn;
   document.getElementById('complete-new-design-btn').textContent = t.completeBanner.newDesignBtn;
+  const restartMissionBtn = document.getElementById('restart-mission-btn');
+  if (restartMissionBtn && t.completeBanner.restartMissionBtn) {
+    restartMissionBtn.textContent = t.completeBanner.restartMissionBtn;
+  }
 
   // Bottom Argon Bar
   document.getElementById('argon-name-label').textContent = t.argon.name;
@@ -1980,6 +2231,7 @@ function updateHudTranslations() {
   const lblEmitter = document.getElementById('label-emitter');
   const lblReflector = document.getElementById('label-reflector');
   const lblReceiver = document.getElementById('label-receiver');
+  const lblAirlock = document.getElementById('label-airlock');
   const lblMonitor = document.getElementById('label-orbit-monitor');
   const lblSun = document.getElementById('label-sun');
   const lblMoon = document.getElementById('label-moon');
@@ -1999,12 +2251,22 @@ function updateHudTranslations() {
   if (lblReceiver) {
     lblReceiver.textContent = gameState.receiverAligned
       ? gameState.lang === 'en'
-        ? '🟢 Optical Receiver (LOCKED)'
-        : '🟢 광수신기 (연결 완료)'
+        ? '🟢 Station Uplink Relay (LOCKED)'
+        : '🟢 기지 송신 릴레이 (연결됨)'
       : gameState.lang === 'en'
-        ? '🎯 Optical Receiver (Target)'
-        : '🎯 광수신기 (목표)';
+        ? '🎯 Station Uplink Relay (Target)'
+        : '🎯 기지 송신 릴레이 (목표)';
     lblReceiver.classList.toggle('locked', gameState.receiverAligned);
+  }
+  if (lblAirlock) {
+    lblAirlock.textContent = gameState.doorOpened
+      ? gameState.lang === 'en'
+        ? '🚪 Airlock OPEN (Click to Return)'
+        : '🚪 에어록 개방됨 (클릭하여 귀환)'
+      : gameState.lang === 'en'
+        ? '🔒 Airlock (Awaiting Ground ACK)'
+        : '🔒 에어록 (관제 승인 대기)';
+    lblAirlock.classList.toggle('open-ready', Boolean(gameState.doorOpened));
   }
   if (lblMonitor && t.orbitMonitor) {
     lblMonitor.textContent = t.orbitMonitor.worldTag;
@@ -2026,6 +2288,7 @@ function updateHudTranslations() {
     const omClose = document.getElementById('close-orbit-modal-btn');
     const omMarkerTitle = document.getElementById('ui-orbit-marker-title');
     const omMarkerDir = document.getElementById('ui-orbit-marker-dir');
+    const omGroundLbl = document.getElementById('orbit-ground-label');
     const omLegRev = document.getElementById('ui-orbit-legend-rev');
     const omLegSpin = document.getElementById('ui-orbit-legend-spin');
     const omLegSync = document.getElementById('ui-orbit-legend-sync');
@@ -2037,6 +2300,9 @@ function updateHudTranslations() {
     if (omClose) omClose.textContent = t.orbitMonitor.closeBtn;
     if (omMarkerTitle) omMarkerTitle.textContent = `🛰️ ${t.orbitMonitor.markerLabel}`;
     if (omMarkerDir) omMarkerDir.textContent = t.orbitMonitor.directionLabel;
+    if (omGroundLbl && t.orbitMonitor.groundStationLabel) {
+      omGroundLbl.textContent = t.orbitMonitor.groundStationLabel;
+    }
     if (omLegRev) omLegRev.textContent = t.orbitMonitor.legendOrbit;
     if (omLegSpin) omLegSpin.textContent = t.orbitMonitor.legendEarthSpin;
     if (omLegSync) omLegSync.textContent = t.orbitMonitor.legendSync;
@@ -2167,6 +2433,7 @@ const tempProjVec = new THREE.Vector3();
 const tempSkySunPos = new THREE.Vector3();
 const tempSkyMoonPos = new THREE.Vector3();
 const tempSkySolarPos = new THREE.Vector3();
+const AIRLOCK_LABEL_POS = new THREE.Vector3(0, 3.2, -13.2);
 
 function updateWorldLabels() {
   scene.updateMatrixWorld();
@@ -2187,6 +2454,7 @@ function updateWorldLabels() {
     { el: document.getElementById('label-emitter'), pos: EMITTER_POS, offsetY: 0.65 },
     { el: document.getElementById('label-reflector'), pos: MOUNT_POS, offsetY: 1.45 },
     { el: document.getElementById('label-receiver'), pos: RECEIVER_POS, offsetY: 0.85 },
+    { el: document.getElementById('label-airlock'), pos: AIRLOCK_LABEL_POS, offsetY: 0.25 },
     { el: document.getElementById('label-orbit-monitor'), pos: ORBIT_MONITOR_POS, offsetY: 0.58 },
   ];
   for (const item of items) {
@@ -2225,8 +2493,10 @@ document.getElementById('lang-toggle-btn').addEventListener('click', async () =>
 
 document.getElementById('bgm-toggle-btn').addEventListener('click', async () => {
   if (bgmAudio.paused) {
+    gameState.userMutedBgm = false;
     await ensureBgmPlaying();
   } else {
+    gameState.userMutedBgm = true;
     bgmAudio.pause();
     gameState.bgmPlaying = false;
   }
