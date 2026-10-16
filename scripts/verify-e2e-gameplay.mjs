@@ -23,21 +23,21 @@ try {
   await page.goto(baseUrl);
   await page.waitForFunction(() => Boolean(window.__suncatcherTest));
 
-  // 1. Verify KO / EN Bilingual Mode Switching
+  // 1. Verify EN / KO Bilingual Mode (Starts in EN as required by Priority 3)
   const initialLang = await page.evaluate(() => window.__suncatcherTest.getState().lang);
-  assert.equal(initialLang, 'ko', 'Starts in Korean (ko) mode');
-  await page.screenshot({ path: path.join(verifyDir, 'e2e-ko-mode.png') });
-
-  await page.click('#lang-toggle-btn');
-  await page.waitForFunction(() => window.__suncatcherTest.getState().lang === 'en');
+  assert.equal(initialLang, 'en', 'Starts in English (en) mode');
   const enTitle = await page.textContent('#ui-game-title');
-  assert.ok(enTitle.includes('ORBITAL OPTICAL RECOVERY'), 'English title rendered');
+  assert.ok(enTitle.includes('THE FINAL TRANSMISSION') || enTitle.includes('SUNCATCHER'), 'English title rendered');
   await page.screenshot({ path: path.join(verifyDir, 'e2e-en-mode.png') });
 
-  // Switch back to KO for remainder or test both
   await page.click('#lang-toggle-btn');
   await page.waitForFunction(() => window.__suncatcherTest.getState().lang === 'ko');
-  console.log('PASS 1: Korean (KO) and English (EN) mode toggle verified');
+  await page.screenshot({ path: path.join(verifyDir, 'e2e-ko-mode.png') });
+
+  // Switch back to EN
+  await page.click('#lang-toggle-btn');
+  await page.waitForFunction(() => window.__suncatcherTest.getState().lang === 'en');
+  console.log('PASS 1: English (EN) default startup and Korean (KO) toggle verified');
 
   // 2. Verify 650 km Dawn-Dusk Sun-Synchronous Orbit & Detailed Earth Layers
   const earthVerification = await page.evaluate(() =>

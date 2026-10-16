@@ -9,6 +9,135 @@ export const LYRIA_INTERACTIONS_ENDPOINT =
 export const DEFAULT_LYRIA_PROMPT =
   'Ambient sci-fi space station synthesizer soundtrack, 650km dawn-dusk orbit over Earth, warm analog pads, subtle crystalline arpeggios, calm zero-gravity exploration mood, 84 BPM, high fidelity stereo';
 
+export const LYRIA_PLAYLIST_PROMPTS = [
+  {
+    id: 'dawn-dusk-orbit',
+    titleKo: '650km 여명-황혼 궤도 앰비언트',
+    titleEn: '650km Dawn-Dusk Orbit Ambient',
+    input:
+      'Ambient sci-fi space station synthesizer soundtrack, 650km dawn-dusk orbit over Earth, warm analog pads, subtle crystalline arpeggios, calm zero-gravity exploration mood, 84 BPM, high fidelity stereo',
+  },
+  {
+    id: 'solar-mirror-calibration',
+    titleKo: '태양광 반사판 정밀 광학 펄스',
+    titleEn: 'Solar Mirror Optical Calibration Pulse',
+    input:
+      'Futuristic electronic synthwave pulse soundtrack for spacewalk EVA laser alignment, crisp analog bassline, shimmering cosmic arpeggios, 102 BPM, instrumental',
+  },
+  {
+    id: 'starlight-relay-ballad',
+    titleKo: '선캐처 스타라이트 릴레이 보컬 송',
+    titleEn: 'Suncatcher Starlight Relay Vocal Song',
+    input:
+      'Dreamy synthpop space ballad with clear ethereal vocals about reflecting sunlight across the 650km orbital relay station Suncatcher:\n[Verse]\nSix hundred fifty kilometers high\nCatching the dawn across the quiet sky\nMirrors of gold align the solar stream\nWaking the station from a silent dream',
+  },
+  {
+    id: 'ionosphere-aurora-drift',
+    titleKo: '열권 오로라 & 무중력 유영',
+    titleEn: 'Thermosphere Aurora & Zero-G Drift',
+    input:
+      'Ethereal cosmic chillout, aurora borealis shimmering beneath low Earth orbit, soft Rhodes electric piano in zero gravity, evolving modular synth sequences, peaceful futuristic soundtrack, 80 BPM, instrumental',
+  },
+  {
+    id: 'honeycomb-gold-array',
+    titleKo: '골드 허니컴 미러 어레이 공명',
+    titleEn: 'Gold Honeycomb Mirror Array Resonance',
+    input:
+      'Deep space optical engineering electronic music, shimmering glass harp textures, precision laser telemetry pulses, warm Moog sub-bass, floating atmospheric synth pads, 92 BPM, instrumental',
+  },
+  {
+    id: 'telemetry-night-watch',
+    titleKo: '큐폴라 야간 궤도 관제 로파이',
+    titleEn: 'Cupola Night Orbit Telemetry Lo-Fi',
+    input:
+      'Lo-fi space station control room beats, gentle satellite telemetry bleeps, warm lush analog synth chords, mellow downtempo groove, stargazing over night city lights on Earth, 78 BPM, instrumental',
+  },
+  {
+    id: 'photon-beam-lock',
+    titleKo: '광수신기 빔 록온 & 게이트 개방',
+    titleEn: 'Optical Receiver Beam Lock & Gate Open',
+    input:
+      'Uplifting cinematic sci-fi electronic anthem, triumphant orbital sunrise, driving sub-bass pulse, sparkling poly-synth chords, hopeful space mission breakthrough theme, 106 BPM, instrumental',
+  },
+  {
+    id: 'argon-ai-companion',
+    titleKo: '아르곤 AI 드론 동행 테마',
+    titleEn: 'Argon AI Drone Companion Theme',
+    input:
+      'Friendly futuristic electronic soundtrack, playful bell melodies, warm analog vocoder textures, smooth synth bass, zero-G robotic companion floating beside astronaut, 90 BPM, instrumental',
+  },
+  {
+    id: 'parabolic-silver-petals',
+    titleKo: '실버 파라볼라 꽃잎 전개 왈츠',
+    titleEn: 'Silver Parabolic Petal Deployment',
+    input:
+      'Neo-classical ambient space electronica, delicate felt piano and warm CS-80 brass swells, unfolding silver mirror petals catching golden sunlight in orbit, 76 BPM, instrumental',
+  },
+  {
+    id: 'earthrise-horizon-glow',
+    titleKo: '지구 지평선 대기 산란 신스 오디세이',
+    titleEn: 'Earthrise Horizon Atmospheric Odyssey',
+    input:
+      'Dreamy progressive ambient electronica, lush stereo pad sweeps, delicate glitch percussion, blue atmospheric scattering glow over Earth curvature, 88 BPM, instrumental',
+  },
+];
+
+export function pickRandomLyriaPrompt(excludeList = []) {
+  const excludeSet = new Set(
+    (Array.isArray(excludeList) ? excludeList : []).map((x) => String(x || '').trim())
+  );
+  const available = LYRIA_PLAYLIST_PROMPTS.filter(
+    (p) => !excludeSet.has(p.id) && !excludeSet.has(p.input)
+  );
+  const pool = available.length > 0 ? available : LYRIA_PLAYLIST_PROMPTS;
+  const idx = Math.floor(Math.random() * pool.length);
+  return pool[idx];
+}
+
+export function loadLyriaPlaylistManifest(projectRoot = process.cwd()) {
+  const publicAudioDir = path.join(projectRoot, 'public', 'audio');
+  const manifestPath = path.join(publicAudioDir, 'lyria-playlist.json');
+  let tracks = [];
+  if (existsSync(manifestPath)) {
+    try {
+      const parsed = JSON.parse(readFileSync(manifestPath, 'utf8'));
+      if (Array.isArray(parsed)) {
+        tracks = parsed.filter(
+          (item) =>
+            item &&
+            typeof item.audioUrl === 'string' &&
+            existsSync(path.join(projectRoot, 'public', item.audioUrl.replace(/^\//, '')))
+        );
+      }
+    } catch {
+      tracks = [];
+    }
+  }
+
+  if (tracks.length === 0) {
+    const defaultPrompt = LYRIA_PLAYLIST_PROMPTS[0];
+    const latestPath = path.join(publicAudioDir, 'lyria-bgm-latest.mp3');
+    if (existsSync(latestPath)) {
+      tracks.push({
+        trackId: 'track-initial-latest',
+        promptId: defaultPrompt.id,
+        titleKo: defaultPrompt.titleKo,
+        titleEn: defaultPrompt.titleEn,
+        model: 'lyria-3-clip-preview',
+        input: defaultPrompt.input,
+        mimeType: 'audio/mpeg',
+        audioUrl: '/audio/lyria-bgm-latest.mp3',
+        text: '<instrumental>',
+        provenance: `REST:POST ${LYRIA_INTERACTIONS_ENDPOINT} (model=lyria-3-clip-preview)`,
+        updatedAt: new Date().toISOString(),
+      });
+    }
+  }
+
+  return tracks;
+}
+
+
 export function loadEnvIfNeeded(projectRoot = process.cwd()) {
   if (process.env.GEMINI_API_KEY) return process.env.GEMINI_API_KEY;
   const candidatePaths = [
@@ -171,59 +300,125 @@ export async function generateArgonDialogue({
   }
 
   const startedAt = Date.now();
-  const hasDirectLiveKey = Boolean(getGeminiApiKey(projectRoot) || process.env.GOOGLE_API_KEY);
+  const apiKey = getGeminiApiKey(projectRoot) || process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY || '';
 
   const systemPrompt =
     lang === 'en'
       ? [
-          `You are ARGON, the onboard tactical AI companion on the Suncatcher orbital station (650 km altitude).`,
-          `Story context ("The Final Transmission"): A micrometeoroid impact damaged the emergency communication path while the technician was on the exterior EVA deck. By mounting the 3D reflector and connecting the reflected laser beam to the Station Uplink Relay (기지 송신 릴레이), we can transmit our rescue request during the next Ground Station pass window. Once 100% is transmitted and Ground Control approves safe return, the airlock opens.`,
-          `Current mission state: phase=${missionState.missionPhase || 'prep'}, designVersion=v${missionState.activeDesignVersion}, designConfirmed=${missionState.designConfirmed}, reflectorGenerated=${missionState.reflectorGenerated}, reflectorMounted=${missionState.reflectorMounted}, relayConnected=${missionState.receiverAligned}, txProgress=${Math.round(missionState.txProgress || 0)}%, groundAck=${Boolean(missionState.groundAckReceived)}, airlockOpen=${Boolean(missionState.doorOpened)}.`,
-          `Respond concisely in 1-2 sentences in English so your voice synthesis sounds natural during EVA. Stay consistent with the current mission state and never claim all station power is magically restored by optics.`,
+          `You are ARGON, the onboard tactical AI companion on the Suncatcher orbital solar-laser relay station at 650 km dawn-dusk sun-synchronous orbit.`,
+          `Current mission state: designVersion=v${missionState.activeDesignVersion}, designConfirmed=${missionState.designConfirmed}, reflectorGenerated=${missionState.reflectorGenerated}, receiverAligned=${missionState.receiverAligned}.`,
+          `Respond concisely in 2-3 sentences in English so your voice synthesis sounds natural during EVA.`,
+          `Also suggest a specific 3D reflector design adjustment if the astronaut asks about reflector design.`,
           `Do NOT use any tools. Reply with plain text only.`,
-          `Technician says: "${cleanMsg}"`,
+          `Astronaut says: "${cleanMsg}"`,
         ].join('\n')
       : [
-          `당신은 고도 650km 궤도 기지 'Suncatcher'의 동반 전술 AI '아르곤(Argon)'입니다.`,
-          `미션 배경("마지막 교신"): 미세 운석 충돌로 비상 통신 경로가 손상되어 정비사가 외부 작업대에 남아 있습니다. 반사판을 장착하고 반사광을 '기지 송신 릴레이'에 연결하면 지상국 교신 구간 동안 구조 요청 데이터를 송신할 수 있습니다. 구조 요청 100% 전송 후 지상 관제가 안전한 귀환을 승인하면 에어록이 열립니다.`,
-          `현재 임무 상태: 단계=${missionState.missionPhase || 'prep'}, 디자인버전=v${missionState.activeDesignVersion}, 디자인승인=${missionState.designConfirmed}, 3D반사판생성=${missionState.reflectorGenerated}, 반사판장착=${missionState.reflectorMounted}, 송신릴레이연결=${missionState.receiverAligned}, 전송률=${Math.round(missionState.txProgress || 0)}%, 관제승인=${Boolean(missionState.groundAckReceived)}, 에어록개방=${Boolean(missionState.doorOpened)}.`,
-          `선외 활동 중인 정비사에게 음성으로 들려주기 좋게 한국어 1~2문장으로 간결하고 현재 상태와 모순 없이 답하세요. 광통신이 기지 전체 전력을 복구한다는 식의 과장된 표현은 쓰지 마세요.`,
+          `당신은 고도 650km 여명-황혼 태양동주기 궤도의 'Suncatcher' 태양광·레이저 중계 기지 동반 AI '아르곤(Argon)'입니다.`,
+          `현재 임무 상태: 디자인버전=v${missionState.activeDesignVersion}, 디자인확인=${missionState.designConfirmed}, 3D반사판생성=${missionState.reflectorGenerated}, 수신기정렬=${missionState.receiverAligned}.`,
+          `선외 활동(EVA) 중인 우주비행사에게 음성으로 들려주기 좋게 한국어 2~3문장으로 간결하고 몰입감 있게 답하세요.`,
           `도구를 호출하지 말고 순수 텍스트로만 응답하세요.`,
-          `정비사 발화: "${cleanMsg}"`,
+          `우주비행사 발화: "${cleanMsg}"`,
         ].join('\n');
 
-  try {
-    const agyRes = await runAgyPrompt({
-      prompt: systemPrompt,
-      cwd: projectRoot,
-      timeoutMs,
-      model: 'gemini-3.8-flash-low',
-    });
-    const reply = agyRes.stdout.trim();
-    return {
-      reply,
-      lang,
-      requestedModelId: 'gemini-3.8-live',
-      activeModelProvenance: hasDirectLiveKey
-        ? 'gemini-3.8-live-configured'
-        : 'agy-cli:gemini-3.8-flash-low@h2gdm-hack26icn-2676+WebSpeechVoice',
-      directLiveApiAvailable: hasDirectLiveKey,
-      bgmDuckingRequired: true,
-      elapsedMs: Date.now() - startedAt,
-    };
-  } catch (err) {
-    throw Object.assign(
-      new Error(
-        lang === 'en'
-          ? `Argon dialogue request failed or timed out (${err.message}). Current scene preserved; you may retry manually.`
-          : `아르곤 대화 응답 실패 또는 시간 초과 (${err.message}). 현재 씬은 안전하게 유지되며 수동 재시도가 가능합니다.`
-      ),
-      {
-        code: err.code || 'DIALOGUE_ERROR',
-        statusCode: err.statusCode || 502,
+  // 1. Try Gemini Interactions REST API if key is present
+  if (apiKey) {
+    try {
+      const resp = await fetch('https://generativelanguage.googleapis.com/v1beta/interactions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': apiKey,
+        },
+        body: JSON.stringify({
+          model: 'gemini-3.8-flash',
+          input: `${systemPrompt}\nReply directly with your concise plain text response:`,
+        }),
+        signal: AbortSignal.timeout(Math.min(timeoutMs, 15000)),
+      });
+
+      if (resp.ok) {
+        const data = await resp.json();
+        let reply = '';
+        if (Array.isArray(data.steps)) {
+          for (const step of data.steps) {
+            if (step && Array.isArray(step.content)) {
+              for (const c of step.content) {
+                if (c && c.type === 'text' && typeof c.text === 'string' && c.text.trim()) {
+                  reply = c.text.trim();
+                }
+              }
+            }
+          }
+        }
+        if (reply) {
+          return {
+            reply,
+            lang,
+            requestedModelId: 'gemini-3.8-flash',
+            activeModelProvenance: 'gemini-3.8-flash(Interactions-API)@h2gdm-hack26icn-2676',
+            directLiveApiAvailable: true,
+            bgmDuckingRequired: true,
+            elapsedMs: Date.now() - startedAt,
+          };
+        }
       }
-    );
+    } catch (_apiErr) {
+      // Fall through to local fallback or agy if available
+    }
   }
+
+  // 2. Try local agy CLI if available on Windows
+  if (process.platform === 'win32') {
+    try {
+      const agyRes = await runAgyPrompt({
+        prompt: systemPrompt,
+        cwd: projectRoot,
+        timeoutMs: Math.min(timeoutMs, 10000),
+        model: 'gemini-3.8-flash-low',
+      });
+      const reply = agyRes.stdout.trim();
+      if (reply) {
+        return {
+          reply,
+          lang,
+          requestedModelId: 'gemini-3.8-flash-low',
+          activeModelProvenance: 'agy-cli:gemini-3.8-flash-low@h2gdm-hack26icn-2676+WebSpeechVoice',
+          directLiveApiAvailable: false,
+          bgmDuckingRequired: true,
+          elapsedMs: Date.now() - startedAt,
+        };
+      }
+    } catch (_agyErr) {
+      // Fall through to deterministic fallback
+    }
+  }
+
+  // 3. Robust contextual onboard mission computer guidance fallback
+  const isEn = lang === 'en';
+  let fallbackReply = '';
+  if (!missionState?.reflectorMounted) {
+    fallbackReply = isEn
+      ? "Astronaut, EVA telemetry confirms the station is in a 650km dawn-dusk polar orbit. Mount the reflector and calibrate the gimbal angles toward [0.72, -0.45] rad to align the laser beam."
+      : "우주비행사님, 선외 원격 계측 결과 650km 여명-황혼 궤도 비행 중입니다. 반사판을 장착하고 수신기 방향 [0.72, -0.45]rad로 각도를 미세 조정해 주세요.";
+  } else if (!missionState?.receiverAligned) {
+    fallbackReply = isEn
+      ? "Reflector mounted securely! Adjust the pitch and yaw gimbal controls toward the optical receiver to achieve optical link lock."
+      : "반사판이 장착되었습니다! 피치와 요 각도를 조절하여 목표 광수신기에 빔을 정렬해 주세요.";
+  } else {
+    fallbackReply = isEn
+      ? "Optical receiver lock confirmed! Telemetry is online and airlock gate is unlocked. Proceed to start the pass window and transmit data."
+      : "광수신기 록온 확인! 통신 링크가 복구되었고 에어록 게이트가 열렸습니다. 교신 구간으로 이동하여 데이터를 송신하세요.";
+  }
+
+  return {
+    reply: fallbackReply,
+    lang,
+    requestedModelId: 'onboard-mission-guidance',
+    activeModelProvenance: 'onboard-mission-computer-guidance (deterministic fallback)',
+    directLiveApiAvailable: false,
+    bgmDuckingRequired: true,
+    elapsedMs: Date.now() - startedAt,
+  };
 }
 
 /**
@@ -309,6 +504,11 @@ export function parseLyriaInteractionResponse(responseJson) {
 export async function generateLyriaMusic({
   model = 'lyria-3-clip-preview',
   input = DEFAULT_LYRIA_PROMPT,
+  randomPrompt = false,
+  excludePrompts = [],
+  promptId = '',
+  titleKo = '',
+  titleEn = '',
   projectRoot = process.cwd(),
   apiKey,
   timeoutMs = 120000,
@@ -325,7 +525,15 @@ export async function generateLyriaMusic({
     );
   }
 
-  const cleanInput = typeof input === 'string' ? input.trim() : '';
+  let selectedPreset = null;
+  if (randomPrompt) {
+    selectedPreset = pickRandomLyriaPrompt(excludePrompts);
+  } else if (promptId) {
+    selectedPreset = LYRIA_PLAYLIST_PROMPTS.find((p) => p.id === promptId) || null;
+  }
+
+  const rawInput = selectedPreset ? selectedPreset.input : input;
+  const cleanInput = typeof rawInput === 'string' ? rawInput.trim() : '';
   if (!cleanInput) {
     throw Object.assign(
       new Error('Lyria 음악 프롬프트 또는 가사(input)를 입력해주세요. / Music prompt cannot be empty.'),
@@ -345,70 +553,104 @@ export async function generateLyriaMusic({
     );
   }
 
+  if (!selectedPreset) {
+    selectedPreset = LYRIA_PLAYLIST_PROMPTS.find((p) => p.input.trim() === cleanInput) || null;
+  }
+
+  const resolvedPromptId = selectedPreset?.id || promptId || `custom-${Date.now()}`;
+  const resolvedTitleKo =
+    titleKo ||
+    selectedPreset?.titleKo ||
+    `커스텀 우주 트랙 (${cleanInput.slice(0, 26)}${cleanInput.length > 26 ? '…' : ''})`;
+  const resolvedTitleEn =
+    titleEn ||
+    selectedPreset?.titleEn ||
+    `Custom Orbital Track (${cleanInput.slice(0, 26)}${cleanInput.length > 26 ? '…' : ''})`;
+
   const allowedModels = new Set(['lyria-3-clip-preview', 'lyria-3.5']);
   const requestedModel = allowedModels.has(model) ? model : 'lyria-3-clip-preview';
 
   const startedAt = Date.now();
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-
   let response;
   let responseJson;
-  try {
-    response = await fetchImpl(LYRIA_INTERACTIONS_ENDPOINT, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-goog-api-key': resolvedApiKey,
-      },
-      body: JSON.stringify({
-        model: requestedModel,
-        input: cleanInput,
-      }),
-      signal: controller.signal,
-    });
+  let lastNetworkErr = null;
 
-    const rawText = await response.text();
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
-      responseJson = rawText ? JSON.parse(rawText) : {};
-    } catch {
-      throw Object.assign(
-        new Error(`Lyria API returned non-JSON response (HTTP ${response.status}): ${rawText.slice(0, 240)}`),
-        {
-          code: 'LYRIA_NON_JSON_RESPONSE',
-          statusCode: 502,
-        }
-      );
-    }
+      response = await fetchImpl(LYRIA_INTERACTIONS_ENDPOINT, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': resolvedApiKey,
+        },
+        body: JSON.stringify({
+          model: requestedModel,
+          input: cleanInput,
+        }),
+        signal: controller.signal,
+      });
 
-    if (!response.ok) {
-      const apiErrMsg =
-        responseJson?.error?.message ||
-        responseJson?.message ||
-        `HTTP ${response.status}`;
-      throw Object.assign(
-        new Error(`Lyria API 호출 실패 (${requestedModel}): ${apiErrMsg}`),
-        {
-          code: 'LYRIA_API_ERROR',
-          statusCode: response.status >= 400 && response.status < 600 ? response.status : 502,
-          details: responseJson?.error || responseJson,
+      const rawText = await response.text();
+      try {
+        responseJson = rawText ? JSON.parse(rawText) : {};
+      } catch {
+        throw Object.assign(
+          new Error(`Lyria API returned non-JSON response (HTTP ${response.status}): ${rawText.slice(0, 240)}`),
+          {
+            code: 'LYRIA_NON_JSON_RESPONSE',
+            statusCode: 502,
+          }
+        );
+      }
+
+      if (!response.ok) {
+        const apiErrMsg =
+          responseJson?.error?.message ||
+          responseJson?.message ||
+          `HTTP ${response.status}`;
+        if (response.status >= 500 && attempt < 3) {
+          await new Promise((r) => setTimeout(r, 1200 * attempt));
+          continue;
         }
-      );
+        throw Object.assign(
+          new Error(`Lyria API 호출 실패 (${requestedModel}): ${apiErrMsg}`),
+          {
+            code: 'LYRIA_API_ERROR',
+            statusCode: response.status >= 400 && response.status < 600 ? response.status : 502,
+            details: responseJson?.error || responseJson,
+          }
+        );
+      }
+
+      lastNetworkErr = null;
+      break;
+    } catch (err) {
+      if (err.name === 'AbortError') {
+        throw Object.assign(
+          new Error(`Lyria 음악 생성 시간 초과 (${timeoutMs}ms). 다시 시도해주세요.`),
+          {
+            code: 'LYRIA_TIMEOUT',
+            statusCode: 504,
+          }
+        );
+      }
+      lastNetworkErr = err;
+      const isTransient =
+        err.message?.includes('fetch failed') ||
+        err.cause?.code === 'ECONNRESET' ||
+        err.cause?.code === 'ETIMEDOUT';
+      if (isTransient && attempt < 3) {
+        await new Promise((r) => setTimeout(r, 1200 * attempt));
+        continue;
+      }
+      throw err;
+    } finally {
+      clearTimeout(timer);
     }
-  } catch (err) {
-    if (err.name === 'AbortError') {
-      throw Object.assign(
-        new Error(`Lyria 음악 생성 시간 초과 (${timeoutMs}ms). 다시 시도해주세요.`),
-        {
-          code: 'LYRIA_TIMEOUT',
-          statusCode: 504,
-        }
-      );
-    }
-    throw err;
-  } finally {
-    clearTimeout(timer);
   }
+  if (lastNetworkErr) throw lastNetworkErr;
 
   const parsed = parseLyriaInteractionResponse(responseJson);
   const mp3Buffer = Buffer.from(parsed.audioData, 'base64');
@@ -430,18 +672,38 @@ export async function generateLyriaMusic({
   await writeFile(latestPublicPath, mp3Buffer);
   await writeFile(latestArtifactPath, mp3Buffer);
 
-  return {
+  const trackMeta = {
+    trackId: `track-${timestamp}`,
+    promptId: resolvedPromptId,
+    titleKo: resolvedTitleKo,
+    titleEn: resolvedTitleEn,
     model: requestedModel,
     input: cleanInput,
     mimeType: parsed.mimeType,
-    audioData: parsed.audioData,
-    audioDataUrl: parsed.audioDataUrl,
     audioUrl: `/audio/${trackFileName}`,
     latestAudioUrl: `/audio/${latestFileName}`,
     text: parsed.text,
     byteLength: mp3Buffer.byteLength,
     elapsedMs: Date.now() - startedAt,
     provenance: `REST:POST ${LYRIA_INTERACTIONS_ENDPOINT} (model=${requestedModel})`,
+    updatedAt: new Date().toISOString(),
+  };
+
+  try {
+    const manifestPath = path.join(publicAudioDir, 'lyria-playlist.json');
+    const currentPlaylist = loadLyriaPlaylistManifest(projectRoot);
+    const updatedPlaylist = [
+      ...currentPlaylist.filter((t) => t.audioUrl !== '/audio/lyria-bgm-latest.mp3' || currentPlaylist.length > 1),
+      trackMeta,
+    ];
+    await writeFile(manifestPath, JSON.stringify(updatedPlaylist, null, 2), 'utf8');
+  } catch {
+    // Ignore manifest write errors
+  }
+
+  return {
+    ...trackMeta,
+    audioData: parsed.audioData,
+    audioDataUrl: parsed.audioDataUrl,
   };
 }
-

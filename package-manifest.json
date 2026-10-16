@@ -1,42 +1,42 @@
 {
   "project": "Suncatcher: Last Contact",
   "team": "Argon",
-  "kind": "sanitized-source-candidate-not-final",
-  "copyStartedUtc": "2026-10-16T06:20:28.99Z",
-  "copyFinishedUtc": "2026-10-16T06:20:29.255Z",
+  "kind": "sanitized-development-snapshot",
+  "copyStartedUtc": "2026-10-16T07:17:04.057Z",
+  "copyFinishedUtc": "2026-10-16T07:17:04.260Z",
   "activeEditsPossible": true,
   "sourceChangedDuringCopy": [],
   "files": [
     {
       "path": ".dockerignore",
-      "bytes": 126,
-      "sha256": "8188f76ca363575a71f3f0721aff1b4bee2d222f5d62d23e24eebe1b51277696",
-      "packagingEdits": [
-        "Generated submission preparation file."
-      ]
+      "bytes": 236,
+      "sha256": "811034f0befa9086ac1c30eb157588c21f39554aa235ebe67352cacae0f1406b",
+      "sourceSha256": "811034f0befa9086ac1c30eb157588c21f39554aa235ebe67352cacae0f1406b",
+      "sourceModifiedUtc": "2026-10-16T06:49:15.464Z",
+      "packagingEdits": []
     },
     {
       "path": ".env.example",
-      "bytes": 196,
-      "sha256": "18c520a5706d3796e7e7e69973e6ea178cd9287b4496019548b10325b6ed2232",
+      "bytes": 365,
+      "sha256": "d86fef98f54524868430eb422a732b2df9bc96a74af24968de218d467eb40ce0",
       "packagingEdits": [
-        "Generated submission preparation file."
+        "Submission and continuity documentation/configuration."
       ]
     },
     {
       "path": ".gcloudignore",
-      "bytes": 133,
-      "sha256": "e964ce3f65916486ab650b8e7a22842513a8cc3646a026943e04bb85d1b608b7",
-      "packagingEdits": [
-        "Generated submission preparation file."
-      ]
+      "bytes": 250,
+      "sha256": "b8dca2da01f95a4ae77c1e0d292e7367f353b6c3af6708bb4c9061a6cb57b47a",
+      "sourceSha256": "b8dca2da01f95a4ae77c1e0d292e7367f353b6c3af6708bb4c9061a6cb57b47a",
+      "sourceModifiedUtc": "2026-10-16T06:49:17.950Z",
+      "packagingEdits": []
     },
     {
       "path": ".gitignore",
-      "bytes": 133,
-      "sha256": "d11df373dc4f576455588573b65b4e3d779c8dc0fc893f361c3069179a9666aa",
+      "bytes": 226,
+      "sha256": "ab78a279c5005865d2d6a857677e3bfc59ae59d3b6fc3042dc0c7720dbe4d3df",
       "packagingEdits": [
-        "Generated submission preparation file."
+        "Submission and continuity documentation/configuration."
       ]
     },
     {
@@ -64,6 +64,14 @@
       "packagingEdits": []
     },
     {
+      "path": "artifacts/models/req-1792123704566-djq7-v2.json",
+      "bytes": 1092,
+      "sha256": "f467b767219bf7fe254a779cb2a0f1a5c732f6a3a41650aa09e6e12735ff9189",
+      "sourceSha256": "f467b767219bf7fe254a779cb2a0f1a5c732f6a3a41650aa09e6e12735ff9189",
+      "sourceModifiedUtc": "2026-10-16T04:10:03.914Z",
+      "packagingEdits": []
+    },
+    {
       "path": "artifacts/models/req-1792123704566-djq7-v2.mjs",
       "bytes": 11369,
       "sha256": "46e9cac828cff2c4181dc42ba1caee3130d9d7983661aa9735ad84fb21a09ee7",
@@ -76,7 +84,7 @@
       "bytes": 357560,
       "sha256": "4173dd5c68f239ae4eee14ded3756b556d8123c6e9052c7664d82e95ea4c2e2e",
       "sourceSha256": "4173dd5c68f239ae4eee14ded3756b556d8123c6e9052c7664d82e95ea4c2e2e",
-      "sourceModifiedUtc": "2026-10-16T03:54:37.39Z",
+      "sourceModifiedUtc": "2026-10-16T03:54:37.390Z",
       "packagingEdits": []
     },
     {
@@ -92,7 +100,7 @@
       "bytes": 13277,
       "sha256": "87e0965b310757995df431b5c55a7476e4f7b8f178815d9a4c48f633eaf65f64",
       "sourceSha256": "87e0965b310757995df431b5c55a7476e4f7b8f178815d9a4c48f633eaf65f64",
-      "sourceModifiedUtc": "2026-10-16T03:54:37.39Z",
+      "sourceModifiedUtc": "2026-10-16T03:54:37.390Z",
       "packagingEdits": []
     },
     {
@@ -104,6 +112,22 @@
       "packagingEdits": []
     },
     {
+      "path": "docs/ACCOUNT-CONTINUITY.txt",
+      "bytes": 2703,
+      "sha256": "c10d4ca986fa17aaedd0eb1013bda31332b6b85cd134617c9d91e6bbfade9667",
+      "packagingEdits": [
+        "Submission and continuity documentation/configuration."
+      ]
+    },
+    {
+      "path": "docs/SUBMISSION.txt",
+      "bytes": 1946,
+      "sha256": "4f214c4a190e64f824cbde1f344237f8743eac14cb01e3af6df5c579677e0885",
+      "packagingEdits": [
+        "Submission and continuity documentation/configuration."
+      ]
+    },
+    {
       "path": "package-lock.json",
       "bytes": 37826,
       "sha256": "884cebbf4ce5e7e043e7fca74d8cc5d041f22f3637e803abc3834d0c79cfeaff",
@@ -113,10 +137,10 @@
     },
     {
       "path": "PACKAGE-NOTES.md",
-      "bytes": 2348,
-      "sha256": "0c84cce5c0c239a07b80d321a795ad0b1b5b15d7d8fa6cc89109fd22778f0c73",
+      "bytes": 1388,
+      "sha256": "31986c42eb11fb67b6a5ddaaca1689b22cb9f07cc939a04d5c490bad2b4a1761",
       "packagingEdits": [
-        "Generated submission preparation file."
+        "Submission and continuity documentation/configuration."
       ]
     },
     {
@@ -129,10 +153,58 @@
     },
     {
       "path": "public/audio/lyria-bgm-latest.mp3",
+      "bytes": 742776,
+      "sha256": "9b89f566243b68be5c2bf993f60a1023b9b17242053caed93142bff2303c15d7",
+      "sourceSha256": "9b89f566243b68be5c2bf993f60a1023b9b17242053caed93142bff2303c15d7",
+      "sourceModifiedUtc": "2026-10-16T05:56:57.318Z",
+      "packagingEdits": []
+    },
+    {
+      "path": "public/audio/lyria-lyria-3_5-1792129868494.mp3",
+      "bytes": 4355824,
+      "sha256": "7ef227237a9295c967bb9272f48eb361dcd7527bfce2d4713e77666ad6042458",
+      "sourceSha256": "7ef227237a9295c967bb9272f48eb361dcd7527bfce2d4713e77666ad6042458",
+      "sourceModifiedUtc": "2026-10-16T05:51:08.503Z",
+      "packagingEdits": []
+    },
+    {
+      "path": "public/audio/lyria-lyria-3-clip-preview-1792128873734.mp3",
       "bytes": 704532,
       "sha256": "566dc4b6b09f0026dfc0389d797041288b76f9b1592382388b1433f768510f14",
       "sourceSha256": "566dc4b6b09f0026dfc0389d797041288b76f9b1592382388b1433f768510f14",
-      "sourceModifiedUtc": "2026-10-16T05:34:33.747Z",
+      "sourceModifiedUtc": "2026-10-16T05:34:33.742Z",
+      "packagingEdits": []
+    },
+    {
+      "path": "public/audio/lyria-lyria-3-clip-preview-1792129720453.mp3",
+      "bytes": 744656,
+      "sha256": "b7fa579c8d6cc6244c72c67410ed3f9927198bec3e218bd66d7d2769fb708e0e",
+      "sourceSha256": "b7fa579c8d6cc6244c72c67410ed3f9927198bec3e218bd66d7d2769fb708e0e",
+      "sourceModifiedUtc": "2026-10-16T05:48:40.461Z",
+      "packagingEdits": []
+    },
+    {
+      "path": "public/audio/lyria-lyria-3-clip-preview-1792130204794.mp3",
+      "bytes": 744656,
+      "sha256": "5e2961fec7bb714cc8f3375d4427baeaf74338904df6bacba2854543e8908374",
+      "sourceSha256": "5e2961fec7bb714cc8f3375d4427baeaf74338904df6bacba2854543e8908374",
+      "sourceModifiedUtc": "2026-10-16T05:56:44.797Z",
+      "packagingEdits": []
+    },
+    {
+      "path": "public/audio/lyria-lyria-3-clip-preview-1792130217315.mp3",
+      "bytes": 742776,
+      "sha256": "9b89f566243b68be5c2bf993f60a1023b9b17242053caed93142bff2303c15d7",
+      "sourceSha256": "9b89f566243b68be5c2bf993f60a1023b9b17242053caed93142bff2303c15d7",
+      "sourceModifiedUtc": "2026-10-16T05:56:57.316Z",
+      "packagingEdits": []
+    },
+    {
+      "path": "public/audio/lyria-playlist.json",
+      "bytes": 2520,
+      "sha256": "90acc642f29af84e9483891013e9cc64ad9987329a3113de4cc71874bf7cae53",
+      "sourceSha256": "90acc642f29af84e9483891013e9cc64ad9987329a3113de4cc71874bf7cae53",
+      "sourceModifiedUtc": "2026-10-16T05:56:57.322Z",
       "packagingEdits": []
     },
     {
@@ -145,35 +217,34 @@
     },
     {
       "path": "public/game.js",
-      "bytes": 133627,
-      "sha256": "4c3888a8d2add2948e39411f9049abd1d940824e964876f53d73f900272acb71",
-      "sourceSha256": "4c3888a8d2add2948e39411f9049abd1d940824e964876f53d73f900272acb71",
-      "sourceModifiedUtc": "2026-10-16T06:20:04.741Z",
+      "bytes": 177887,
+      "sha256": "c40daa5ad10c7ea670faf145e31e1e53d1e68c0adbfb8d4f4e95e02b39c2d05b",
+      "sourceSha256": "c40daa5ad10c7ea670faf145e31e1e53d1e68c0adbfb8d4f4e95e02b39c2d05b",
+      "sourceModifiedUtc": "2026-10-16T07:08:00.963Z",
       "packagingEdits": []
     },
     {
       "path": "public/i18n.js",
-      "bytes": 28606,
-      "sha256": "1b2edc5c0b61d5646d2ea3c93ece239f72f0a13c96c3f4e24827428401229304",
-      "sourceSha256": "1b2edc5c0b61d5646d2ea3c93ece239f72f0a13c96c3f4e24827428401229304",
-      "sourceModifiedUtc": "2026-10-16T06:00:54.442Z",
+      "bytes": 29828,
+      "sha256": "a4c4e1f0e78eaaa83748fa7d9b4981358c006f8505ffdae8cee30277cd808dd7",
+      "sourceSha256": "a4c4e1f0e78eaaa83748fa7d9b4981358c006f8505ffdae8cee30277cd808dd7",
+      "sourceModifiedUtc": "2026-10-16T06:33:49.092Z",
       "packagingEdits": []
     },
     {
       "path": "public/index.html",
-      "bytes": 52732,
-      "sha256": "83bbfc46faa91a9296813580fd9ac41944623d881c0fd64f68385f70e531edb8",
-      "sourceSha256": "83bbfc46faa91a9296813580fd9ac41944623d881c0fd64f68385f70e531edb8",
-      "sourceModifiedUtc": "2026-10-16T06:04:09.556Z",
+      "bytes": 59566,
+      "sha256": "f5343378e05e1a609b7d6aca693313f8aa74ea5304c17c4a669d1ff418db26f8",
+      "sourceSha256": "f5343378e05e1a609b7d6aca693313f8aa74ea5304c17c4a669d1ff418db26f8",
+      "sourceModifiedUtc": "2026-10-16T06:40:42.758Z",
       "packagingEdits": []
     },
     {
       "path": "README.md",
-      "bytes": 5539,
-      "sha256": "3443d01895c76879705fb80aeb14f358befa50e947f0af44c84336d07890b786",
+      "bytes": 5025,
+      "sha256": "0692949853c7238769a015b8d93b21d35a255c055d43a899fff6cb236dd3fa42",
       "packagingEdits": [
-        "Generated submission preparation file.",
-        "Added verified public source repository URL before initial publication."
+        "Submission and continuity documentation/configuration."
       ]
     },
     {
@@ -194,10 +265,10 @@
     },
     {
       "path": "scripts/verify-e2e-gameplay.mjs",
-      "bytes": 10368,
-      "sha256": "8594f45f4607d16131ea74c0d47defacb632855dd2f3096382a18b81a2551b54",
-      "sourceSha256": "8594f45f4607d16131ea74c0d47defacb632855dd2f3096382a18b81a2551b54",
-      "sourceModifiedUtc": "2026-10-16T04:07:36.467Z",
+      "bytes": 10416,
+      "sha256": "5f3a6c06daab316c4fec89cfc50dc356970171843c10d9a06ec5562bbc2245e9",
+      "sourceSha256": "5f3a6c06daab316c4fec89cfc50dc356970171843c10d9a06ec5562bbc2245e9",
+      "sourceModifiedUtc": "2026-10-16T06:45:29.445Z",
       "packagingEdits": []
     },
     {
@@ -205,9 +276,9 @@
       "bytes": 15714,
       "sha256": "e0f6be0fef289627a180284a15cc3fc8b57031b1e1e84403c14b8f728a09c7a1",
       "sourceSha256": "92cefe743afddd74fd9d2647d12ff8e4730bce00d6d6aa7a34c958d2e5bdeca7",
-      "sourceModifiedUtc": "2026-10-16T05:52:37.55Z",
+      "sourceModifiedUtc": "2026-10-16T05:52:37.550Z",
       "packagingEdits": [
-        "Made verification output path relative to checkout."
+        "Checkout-relative verification output path."
       ]
     },
     {
@@ -220,20 +291,20 @@
     },
     {
       "path": "server/ai-services.mjs",
-      "bytes": 17308,
-      "sha256": "d70eb96918578e9e3200da3ba3bd3d184a7cb00dee2e18817fc8401767b50b24",
-      "sourceSha256": "a3788e6e37b374b6dc39819c6c6d7cbf2c03c17e08f24b585627e17c81d57e4d",
-      "sourceModifiedUtc": "2026-10-16T05:58:56.827Z",
+      "bytes": 26652,
+      "sha256": "d7fa859cdad9109cea18941acdebb42745ca9eed5d77c9b4d5a61d5be4c76549",
+      "sourceSha256": "8cb3e7bff3074a007c86d5754cff7a8593a24326ee89c25e196743e172948e2e",
+      "sourceModifiedUtc": "2026-10-16T06:34:29.429Z",
       "packagingEdits": [
-        "Removed unused personal Antigravity brain directory constant."
+        "Removed unused personal agent-state path and normalized trailing blank lines."
       ]
     },
     {
       "path": "server/app.mjs",
-      "bytes": 18596,
-      "sha256": "a3eb24d70fa04cdc4212a084d0151826bd65c1e10d1a2c51cf2d041313eef9ec",
-      "sourceSha256": "a3eb24d70fa04cdc4212a084d0151826bd65c1e10d1a2c51cf2d041313eef9ec",
-      "sourceModifiedUtc": "2026-10-16T05:58:56.811Z",
+      "bytes": 22715,
+      "sha256": "3cb834c40967235b8066a8c25699ac4cce250e4f596ab0ed7f45ba34e84ad1e0",
+      "sourceSha256": "3cb834c40967235b8066a8c25699ac4cce250e4f596ab0ed7f45ba34e84ad1e0",
+      "sourceModifiedUtc": "2026-10-16T06:44:41.480Z",
       "packagingEdits": []
     },
     {
@@ -262,12 +333,12 @@
     },
     {
       "path": "server/reflector-3d-generator.mjs",
-      "bytes": 12549,
-      "sha256": "e8e5617b16966fd52cc4a8bf498d5661d2342d4a7546891d9a8d8390f694c637",
-      "sourceSha256": "b463cad825e8038762b3d5486d9f2e025edd09d579c79366781b92548a13a5e7",
-      "sourceModifiedUtc": "2026-10-16T04:45:26.499Z",
+      "bytes": 14534,
+      "sha256": "6d1c8a4a299714c599e818f94ac438173bcbbcc41b90819b044a6a57c2b2fe81",
+      "sourceSha256": "9591595c36d715ed498efc0d54abfb879589376e69e46cf719016225cb93723d",
+      "sourceModifiedUtc": "2026-10-16T06:34:49.012Z",
       "packagingEdits": [
-        "Replaced personal Windows executable fallback with portable agy lookup; AGY_BIN override retained."
+        "Portable CLI fallback; AGY_BIN override retained."
       ]
     },
     {

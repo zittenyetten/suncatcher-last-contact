@@ -1,0 +1,31 @@
+{
+  "requestId": "req-1792123704566-djq7",
+  "approvedDesignVersion": 2,
+  "description": "8-petal circular parabolic silver-platinum optical dish reflector with glowing amber-orange laser calibration ring, 3 triangular perimeter clamps, and heavy rear cylindrical actuator gimbal. | Modification: Switch to circular 8-petal parabolic silver dish v2",
+  "sourceImagePath": "artifacts/designs/design-v2-1792123704416.png",
+  "generationMethod": "agy-cli:gemini-3.8-flash-low@h2gdm-hack26icn-2676",
+  "createdAt": "2026-10-16T04:10:03.911Z",
+  "elapsedMs": 99345,
+  "glbByteLength": 500908,
+  "metrics": {
+    "meshCount": 44,
+    "vertexCount": 15666,
+    "triangleCount": 10784,
+    "boundingBox": {
+      "width": 1.78,
+      "height": 1.821,
+      "depth": 0.534
+    },
+    "opticalNormalLocal": [
+      0,
+      0,
+      1
+    ],
+    "geometryHash": "3a15d6ccb1f1bdf7"
+  },
+  "files": {
+    "codeUrl": "/artifacts/models/req-1792123704566-djq7-v2.mjs",
+    "glbUrl": "/artifacts/models/req-1792123704566-djq7-v2.glb",
+    "metaUrl": "/artifacts/models/req-1792123704566-djq7-v2.json"
+  }
+}

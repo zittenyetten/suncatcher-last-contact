@@ -1,0 +1,50 @@
+[
+  {
+    "trackId": "track-1792128873734",
+    "promptId": "dawn-dusk-orbit",
+    "titleKo": "650km 여명-황혼 궤도 앰비언트",
+    "titleEn": "650km Dawn-Dusk Orbit Ambient",
+    "model": "lyria-3-clip-preview",
+    "input": "Ambient sci-fi space station synthesizer soundtrack, 650km dawn-dusk orbit over Earth, warm analog pads, subtle crystalline arpeggios, calm zero-gravity exploration mood, 84 BPM, high fidelity stereo",
+    "mimeType": "audio/mpeg",
+    "audioUrl": "/audio/lyria-lyria-3-clip-preview-1792128873734.mp3",
+    "latestAudioUrl": "/audio/lyria-bgm-latest.mp3",
+    "text": "<instrumental>",
+    "byteLength": 704532,
+    "elapsedMs": 14200,
+    "provenance": "REST:POST https://generativelanguage.googleapis.com/v1beta/interactions (model=lyria-3-clip-preview)",
+    "updatedAt": "2026-10-16T05:56:28.566Z"
+  },
+  {
+    "trackId": "track-1792130204794",
+    "promptId": "solar-mirror-calibration",
+    "titleKo": "태양광 반사판 정밀 광학 펄스",
+    "titleEn": "Solar Mirror Optical Calibration Pulse",
+    "model": "lyria-3-clip-preview",
+    "input": "Futuristic electronic synthwave pulse soundtrack for spacewalk EVA laser alignment, crisp analog bassline, shimmering cosmic arpeggios, 102 BPM, instrumental",
+    "mimeType": "audio/mpeg",
+    "audioUrl": "/audio/lyria-lyria-3-clip-preview-1792130204794.mp3",
+    "latestAudioUrl": "/audio/lyria-bgm-latest.mp3",
+    "text": "<instrumental>",
+    "byteLength": 744656,
+    "elapsedMs": 16235,
+    "provenance": "REST:POST https://generativelanguage.googleapis.com/v1beta/interactions (model=lyria-3-clip-preview)",
+    "updatedAt": "2026-10-16T05:56:44.810Z"
+  },
+  {
+    "trackId": "track-1792130217315",
+    "promptId": "ionosphere-aurora-drift",
+    "titleKo": "열권 오로라 & 무중력 유영",
+    "titleEn": "Thermosphere Aurora & Zero-G Drift",
+    "model": "lyria-3-clip-preview",
+    "input": "Ethereal cosmic chillout, aurora borealis shimmering beneath low Earth orbit, soft Rhodes electric piano in zero gravity, evolving modular synth sequences, peaceful futuristic soundtrack, 80 BPM, instrumental",
+    "mimeType": "audio/mpeg",
+    "audioUrl": "/audio/lyria-lyria-3-clip-preview-1792130217315.mp3",
+    "latestAudioUrl": "/audio/lyria-bgm-latest.mp3",
+    "text": "<instrumental>",
+    "byteLength": 742776,
+    "elapsedMs": 12503,
+    "provenance": "REST:POST https://generativelanguage.googleapis.com/v1beta/interactions (model=lyria-3-clip-preview)",
+    "updatedAt": "2026-10-16T05:56:57.320Z"
+  }
+]

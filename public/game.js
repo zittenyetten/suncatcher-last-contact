@@ -114,151 +114,38 @@ function createStarfield() {
 }
 createStarfield();
 
-// Unified Orbital Simulation State (Shared by Out-the-Window 3D Earth, In-Scene Monitor & 3D Orbit Modal)
-// Backed by Real Satellite Orbit API (NORAD 100902 · PROJECT SUNCATCHER M1 · CelesTrak GP + SatelliteMap)
-const MU_EARTH_KM3_S2 = 398600.4418;
-const EARTH_RADIUS_KM = 6378.137;
-const SECONDS_PER_DAY = 86400;
-const EARTH_SIDEREAL_RAD_PER_SEC = (2 * Math.PI) / 86164.0905;
-
+// Unified Orbital & Solar System Simulation State (Shared by Out-the-Window 3D Sky, In-Scene Monitor & 3D Orbit Modal)
+// 650 km Virtual Sun-Synchronous Orbit Simulation with 120x Demo Time Warp (noticeable motion in 5-10s)
 const orbitSim = {
-  apiSynced: false,
-  apiSource: 'celestrak-gp-live',
-  noradId: 100902,
-  objectName: 'PROJECT SUNCATCHER M1',
-  objectId: '2026-227V',
-  altitudeKm: 515.0,
-  stationDesignAltitudeKm: 650,
-  inclinationDeg: 97.4423,
-  velocityKms: 7.61,
-  periodMin: 94.92,
-  latDeg: 18.42,
-  lonDeg: 127.65,
-  timeScale: 1, // Real-time 1x speed by default (can toggle 1x -> 10x -> 30x)
+  altitudeKm: 650,
+  inclinationDeg: 98.0,
+  timeScale: 120,
   simTimeSec: 0,
-  virtualTimestampMs: Date.now(),
-  initialArgOfLatitudeRad: null,
-  initialGmstRad: null,
-  orbitAngleRad: 0.72, // Anchored on front hemisphere so marker is always immediately visible
-  earthSpinRad: 0.45,
-  baseOrbitRateRadPerSec: (15.17120308 * 2 * Math.PI) / SECONDS_PER_DAY, // ~0.0011033 rad/s (0.0632 deg/s at 1x)
-  baseEarthSpinRateRadPerSec: EARTH_SIDEREAL_RAD_PER_SEC,
+  orbitAngleRad: 0.72, // Initial station orbital anomaly (radians)
+  earthSpinRad: 0.45, // Initial Earth axial rotation (radians)
+  moonOrbitAngleRad: 0.58, // Initial Lunar orbital anomaly (radians)
+  moonSpinRad: 0.3, // Lunar axial rotation (tidally locked / slow spin)
+  sunSpinRad: 0.15, // Solar photosphere rotation
+  orbitRateRadPerRealSec: 0.095, // ~5.44 deg/sec at 120x warp (~27 deg in 5s)
+  earthSpinRateRadPerRealSec: 0.024, // ~1.38 deg/sec distinct Earth axial rotation
+  moonOrbitRateRadPerRealSec: 0.042, // Visible lunar revolution in sky & monitor
   cloudDriftRad: 0,
-  elements: {
-    noradId: 100902,
-    objectName: 'PROJECT SUNCATCHER M1',
-    objectId: '2026-227V',
-    epoch: '2026-10-15T22:17:51.238464',
-    epochMs: Date.parse('2026-10-15T22:17:51.238464Z'),
-    meanMotionRevPerDay: 15.17120308,
-    eccentricity: 0.00023159,
-    inclinationDeg: 97.4423,
-    raanDeg: 358.1937,
-    argOfPericenterDeg: 82.7922,
-    meanAnomalyDeg: 277.3574,
-  },
+  orbitViewMode: 'earth', // 'earth' (Earth+Moon+Sun+PiP) | 'solar' (Full 3D Solar System Orrery)
+  planets: [
+    { key: 'mercury', orbitRadius: 1.05, size: 0.095, speed: 0.19, angle: 0.4, color: 0xcbd5e1, tilt: 0.03 },
+    { key: 'venus', orbitRadius: 1.48, size: 0.135, speed: 0.135, angle: 1.65, color: 0xfde68a, tilt: 0.05 },
+    { key: 'earth', orbitRadius: 2.02, size: 0.165, speed: 0.095, angle: 2.75, color: 0x38bdf8, tilt: 0.41, hasMoon: true },
+    { key: 'mars', orbitRadius: 2.56, size: 0.125, speed: 0.068, angle: 4.05, color: 0xf97316, tilt: 0.44 },
+    { key: 'jupiter', orbitRadius: 3.42, size: 0.34, speed: 0.038, angle: 0.88, color: 0xf59e0b, tilt: 0.06, hasMoons: true },
+    { key: 'saturn', orbitRadius: 4.38, size: 0.285, speed: 0.026, angle: 5.35, color: 0xfcd34d, tilt: 0.47, hasRings: true },
+    { key: 'uranus', orbitRadius: 5.22, size: 0.195, speed: 0.017, angle: 2.15, color: 0x67e8f9, tilt: 1.45, hasThinRing: true },
+    { key: 'neptune', orbitRadius: 5.95, size: 0.185, speed: 0.012, angle: 4.65, color: 0x3b82f6, tilt: 0.49 },
+  ],
   openCount: 0,
   monitorRenderFrames: 0,
   mainLoopStarted: false,
   renderLoopCount: 0,
 };
-
-function normalizePosAngle(rad) {
-  const twoPi = Math.PI * 2;
-  return ((rad % twoPi) + twoPi) % twoPi;
-}
-
-function wrapDeg180Client(deg) {
-  return (((deg + 180) % 360) + 360) % 360 - 180;
-}
-
-function propagateClientOrbit(elements, timestampMs) {
-  const nRadPerSec = (elements.meanMotionRevPerDay * 2 * Math.PI) / SECONDS_PER_DAY;
-  const semiMajorAxisKm = Math.cbrt(MU_EARTH_KM3_S2 / (nRadPerSec * nRadPerSec));
-  const dtSec = (timestampMs - elements.epochMs) / 1000;
-
-  const m0Rad = (elements.meanAnomalyDeg * Math.PI) / 180;
-  const meanAnomalyRad = normalizePosAngle(m0Rad + nRadPerSec * dtSec);
-
-  const e = elements.eccentricity;
-  let E = meanAnomalyRad;
-  for (let i = 0; i < 4; i++) {
-    E = E - (E - e * Math.sin(E) - meanAnomalyRad) / (1 - e * Math.cos(E));
-  }
-
-  const trueAnomalyRad =
-    2 *
-    Math.atan2(
-      Math.sqrt(1 + e) * Math.sin(E / 2),
-      Math.sqrt(1 - e) * Math.cos(E / 2)
-    );
-  const argPericenterRad = (elements.argOfPericenterDeg * Math.PI) / 180;
-  const argumentOfLatitudeRad = normalizePosAngle(argPericenterRad + trueAnomalyRad);
-
-  const radiusKm = semiMajorAxisKm * (1 - e * Math.cos(E));
-  const altitudeKm = radiusKm - EARTH_RADIUS_KM;
-  const velocityKms = Math.sqrt(MU_EARTH_KM3_S2 * (2 / radiusKm - 1 / semiMajorAxisKm));
-
-  const incRad = (elements.inclinationDeg * Math.PI) / 180;
-  const raanRad = (elements.raanDeg * Math.PI) / 180;
-
-  const xOrb = Math.cos(argumentOfLatitudeRad);
-  const yOrb = Math.sin(argumentOfLatitudeRad);
-
-  const xEci = xOrb * Math.cos(raanRad) - yOrb * Math.cos(incRad) * Math.sin(raanRad);
-  const yEci = xOrb * Math.sin(raanRad) + yOrb * Math.cos(incRad) * Math.cos(raanRad);
-  const zEci = yOrb * Math.sin(incRad);
-
-  const jd = timestampMs / 86400000 + 2440587.5;
-  const gmstDeg = 280.46061837 + 360.98564736629 * (jd - 2451545.0);
-  const gmstRad = normalizePosAngle((gmstDeg * Math.PI) / 180);
-
-  const latRad = Math.asin(Math.max(-1, Math.min(1, zEci)));
-  const lonRad = Math.atan2(yEci, xEci) - gmstRad;
-
-  return {
-    argumentOfLatitudeRad,
-    gmstRad,
-    latDeg: Number(((latRad * 180) / Math.PI).toFixed(2)),
-    lonDeg: Number(wrapDeg180Client((lonRad * 180) / Math.PI).toFixed(2)),
-    altitudeKm: Number(altitudeKm.toFixed(1)),
-    velocityKms: Number(velocityKms.toFixed(2)),
-  };
-}
-
-async function syncOrbitFromApi() {
-  try {
-    const res = await fetch('/api/orbit');
-    if (!res.ok) return;
-    const data = await res.json();
-    if (data && data.ok && data.elements) {
-      orbitSim.apiSynced = true;
-      orbitSim.apiSource = data.source || 'celestrak-gp-live';
-      orbitSim.noradId = data.elements.noradId || 100902;
-      orbitSim.objectName = data.elements.objectName || 'PROJECT SUNCATCHER M1';
-      orbitSim.objectId = data.elements.objectId || '2026-227V';
-      orbitSim.elements = data.elements;
-      orbitSim.inclinationDeg = Number(data.elements.inclinationDeg.toFixed(2));
-      orbitSim.baseOrbitRateRadPerSec =
-        data.derived?.angularRateRadPerSec ||
-        (data.elements.meanMotionRevPerDay * 2 * Math.PI) / SECONDS_PER_DAY;
-      orbitSim.periodMin = data.derived?.periodMin || 94.92;
-
-      const prop = propagateClientOrbit(orbitSim.elements, orbitSim.virtualTimestampMs);
-      if (orbitSim.initialArgOfLatitudeRad === null) {
-        orbitSim.initialArgOfLatitudeRad = prop.argumentOfLatitudeRad;
-        orbitSim.initialGmstRad = prop.gmstRad;
-      }
-      orbitSim.latDeg = prop.latDeg;
-      orbitSim.lonDeg = prop.lonDeg;
-      orbitSim.altitudeKm = prop.altitudeKm;
-      orbitSim.velocityKms = prop.velocityKms;
-      updateOrbitMonitorHudLabels();
-    }
-  } catch {
-    // Offline fallback uses preloaded NORAD 100902 elements
-  }
-}
 
 // Detailed 650 km Earth View (Surface + Night City Lights + Clouds + Atmosphere Rim)
 // Driven by orbitSim so the out-the-window Earth visibly revolves and rotates in sync with the Orbit Monitor
@@ -456,6 +343,358 @@ function createDetailedEarth() {
   };
 }
 const earthLayers = createDetailedEarth();
+
+// ============================================================================
+// Out-the-Window 3D Sun, 3D Moon (with Lunar Orbit Ring) & Ecliptic Solar System Vista
+// Framed directly above Earth's horizon in the default camera frustum so they are immediately visible!
+// ============================================================================
+function createCelestialSky() {
+  const skyRoot = new THREE.Group();
+  skyRoot.name = 'CelestialSolarSystemSkyGroup';
+  scene.add(skyRoot);
+
+  // 1. Procedural Solar Photosphere & Corona Textures
+  const sunSurfCanvas = document.createElement('canvas');
+  sunSurfCanvas.width = 512;
+  sunSurfCanvas.height = 256;
+  const suCtx = sunSurfCanvas.getContext('2d');
+  const sunBaseGrad = suCtx.createLinearGradient(0, 0, 0, 256);
+  sunBaseGrad.addColorStop(0, '#fff7ed');
+  sunBaseGrad.addColorStop(0.25, '#fef08a');
+  sunBaseGrad.addColorStop(0.5, '#fbbf24');
+  sunBaseGrad.addColorStop(0.75, '#f59e0b');
+  sunBaseGrad.addColorStop(1, '#ea580c');
+  suCtx.fillStyle = sunBaseGrad;
+  suCtx.fillRect(0, 0, 512, 256);
+
+  // Solar granulation & active flare regions
+  for (let i = 0; i < 260; i++) {
+    const gx = (i * 67.3) % 512;
+    const gy = (i * 43.1) % 256;
+    const r = 3 + (i % 5) * 3.5;
+    suCtx.fillStyle = i % 3 === 0 ? 'rgba(255, 255, 240, 0.55)' : 'rgba(234, 88, 12, 0.42)';
+    suCtx.beginPath();
+    suCtx.arc(gx, gy, r, 0, Math.PI * 2);
+    suCtx.fill();
+  }
+  const sunSurfTex = new THREE.CanvasTexture(sunSurfCanvas);
+
+  // Radial Solar Corona / Ray Glow Sprite Texture
+  const coronaCanvas = document.createElement('canvas');
+  coronaCanvas.width = 512;
+  coronaCanvas.height = 512;
+  const coCtx = coronaCanvas.getContext('2d');
+  const radGrad = coCtx.createRadialGradient(256, 256, 24, 256, 256, 250);
+  radGrad.addColorStop(0, 'rgba(255, 255, 255, 1.0)');
+  radGrad.addColorStop(0.18, 'rgba(254, 240, 138, 0.92)');
+  radGrad.addColorStop(0.42, 'rgba(251, 191, 36, 0.48)');
+  radGrad.addColorStop(0.72, 'rgba(245, 158, 11, 0.14)');
+  radGrad.addColorStop(1, 'rgba(234, 88, 12, 0.0)');
+  coCtx.fillStyle = radGrad;
+  coCtx.fillRect(0, 0, 512, 512);
+
+  // Subtle solar diffraction rays
+  coCtx.save();
+  coCtx.translate(256, 256);
+  for (let r = 0; r < 12; r++) {
+    coCtx.rotate(Math.PI / 6);
+    const rayGrad = coCtx.createLinearGradient(0, -6, 240, 6);
+    rayGrad.addColorStop(0, 'rgba(255, 251, 235, 0.5)');
+    rayGrad.addColorStop(1, 'rgba(251, 191, 36, 0)');
+    coCtx.fillStyle = rayGrad;
+    coCtx.beginPath();
+    coCtx.moveTo(0, -5);
+    coCtx.lineTo(245, 0);
+    coCtx.lineTo(0, 5);
+    coCtx.closePath();
+    coCtx.fill();
+  }
+  coCtx.restore();
+  const sunCoronaTex = new THREE.CanvasTexture(coronaCanvas);
+
+  // 3D Sun Group in Upper-Left Sky above Earth's horizon: (-56, 36, -146)
+  const sunSkyGroup = new THREE.Group();
+  sunSkyGroup.name = 'SkySun3DGroup';
+  sunSkyGroup.position.set(-56, 36, -146);
+  skyRoot.add(sunSkyGroup);
+
+  const sunCoreMesh = new THREE.Mesh(
+    new THREE.SphereGeometry(9.6, 48, 48),
+    new THREE.MeshBasicMaterial({ map: sunSurfTex })
+  );
+  sunCoreMesh.name = 'SkySunPhotosphereMesh';
+  sunSkyGroup.add(sunCoreMesh);
+
+  const sunChromosphereMesh = new THREE.Mesh(
+    new THREE.SphereGeometry(11.4, 40, 40),
+    new THREE.MeshBasicMaterial({
+      color: 0xfde047,
+      transparent: true,
+      opacity: 0.46,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    })
+  );
+  sunSkyGroup.add(sunChromosphereMesh);
+
+  const sunCoronaSprite = new THREE.Sprite(
+    new THREE.SpriteMaterial({
+      map: sunCoronaTex,
+      color: 0xfef08a,
+      transparent: true,
+      opacity: 0.95,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    })
+  );
+  sunCoronaSprite.scale.set(52, 52, 1);
+  sunSkyGroup.add(sunCoronaSprite);
+
+  // Align directional sunLight with our visible 3D Sun in the sky!
+  sunLight.position.copy(sunSkyGroup.position);
+
+  // 2. Procedural 3D Moon Texture (Lunar Maria + Impact Craters + Regolith Highlights)
+  const moonCanvas = document.createElement('canvas');
+  moonCanvas.width = 512;
+  moonCanvas.height = 256;
+  const moCtx = moonCanvas.getContext('2d');
+  const moonGrad = moCtx.createLinearGradient(0, 0, 512, 256);
+  moonGrad.addColorStop(0, '#cbd5e1');
+  moonGrad.addColorStop(0.5, '#e2e8f0');
+  moonGrad.addColorStop(1, '#94a3b8');
+  moCtx.fillStyle = moonGrad;
+  moCtx.fillRect(0, 0, 512, 256);
+
+  // Dark basaltic Lunar Maria (Seas of Tranquility, Imbrium, Serenity, Procellarum)
+  const maria = [
+    [140, 95, 62, 46, 0.2],
+    [225, 115, 54, 42, -0.15],
+    [310, 130, 48, 38, 0.1],
+    [185, 158, 70, 40, 0.25],
+    [390, 105, 45, 34, -0.2],
+  ];
+  for (const [mx, my, mw, mh, mrot] of maria) {
+    moCtx.fillStyle = 'rgba(71, 85, 105, 0.58)';
+    moCtx.beginPath();
+    moCtx.ellipse(mx, my, mw, mh, mrot, 0, Math.PI * 2);
+    moCtx.fill();
+  }
+
+  // Distinct Lunar Craters with dark floor & bright ejecta rim
+  for (let i = 0; i < 95; i++) {
+    const cx = (i * 59.7 + 23) % 490 + 11;
+    const cy = (i * 37.3 + 17) % 220 + 18;
+    const cr = 2.5 + (i % 6) * 2.4;
+    moCtx.fillStyle = 'rgba(51, 65, 85, 0.55)';
+    moCtx.beginPath();
+    moCtx.arc(cx, cy, cr, 0, Math.PI * 2);
+    moCtx.fill();
+    moCtx.strokeStyle = 'rgba(248, 250, 252, 0.65)';
+    moCtx.lineWidth = 1.2;
+    moCtx.beginPath();
+    moCtx.arc(cx - 0.6, cy - 0.6, cr, 0, Math.PI * 2);
+    moCtx.stroke();
+  }
+  const moonTex = new THREE.CanvasTexture(moonCanvas);
+
+  // 3D Moon System in Upper-Right Sky above Earth's horizon: (48, 33, -142)
+  // Includes an inclined 3D Lunar Orbital Track ring around which the Moon visibly orbits!
+  const moonSkyCenterGroup = new THREE.Group();
+  moonSkyCenterGroup.name = 'SkyMoonSystemGroup';
+  moonSkyCenterGroup.position.set(48, 33, -142);
+  moonSkyCenterGroup.rotation.x = 0.42;
+  moonSkyCenterGroup.rotation.z = -0.24;
+  skyRoot.add(moonSkyCenterGroup);
+
+  const moonSkyOrbitRadius = 11.5;
+  const moonOrbitRing = new THREE.Mesh(
+    new THREE.TorusGeometry(moonSkyOrbitRadius, 0.14, 12, 96),
+    new THREE.MeshBasicMaterial({
+      color: 0x94a3b8,
+      transparent: true,
+      opacity: 0.42,
+    })
+  );
+  moonOrbitRing.rotation.x = Math.PI / 2;
+  moonSkyCenterGroup.add(moonOrbitRing);
+
+  const moonBodyGroup = new THREE.Group();
+  moonBodyGroup.name = 'SkyMoonBodyGroup';
+  moonSkyCenterGroup.add(moonBodyGroup);
+
+  const moonMesh = new THREE.Mesh(
+    new THREE.SphereGeometry(5.6, 48, 48),
+    new THREE.MeshStandardMaterial({
+      map: moonTex,
+      roughness: 0.72,
+      metalness: 0.08,
+      emissive: 0x334155,
+      emissiveIntensity: 0.38,
+    })
+  );
+  moonMesh.name = 'SkyMoonMesh';
+  moonBodyGroup.add(moonMesh);
+
+  const moonGlowHalo = new THREE.Mesh(
+    new THREE.SphereGeometry(6.5, 32, 32),
+    new THREE.MeshBasicMaterial({
+      color: 0xe2e8f0,
+      transparent: true,
+      opacity: 0.22,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    })
+  );
+  moonBodyGroup.add(moonGlowHalo);
+
+  // 3. Ecliptic Solar System Sky Arc & Visible 3D Planets (Mercury, Venus, Mars, Jupiter, Saturn+Rings, Uranus, Neptune)
+  // Spanning across the sky from the Sun (-56, 36, -146) toward the right horizon so the player sees the Solar System out the window!
+  const eclipticGroup = new THREE.Group();
+  eclipticGroup.name = 'SkyEclipticSolarSystemGroup';
+  skyRoot.add(eclipticGroup);
+
+  // Subtle Ecliptic Plane Guide Curve connecting Sun -> Inner Planets -> Outer Gas Giants
+  const eclipticPts = [
+    new THREE.Vector3(-56, 36, -146),
+    new THREE.Vector3(-34, 38.5, -148),
+    new THREE.Vector3(-12, 39.5, -149),
+    new THREE.Vector3(14, 38.5, -148),
+    new THREE.Vector3(42, 35.5, -146),
+    new THREE.Vector3(68, 30.5, -144),
+  ];
+  const eclipticCurve = new THREE.CatmullRomCurve3(eclipticPts);
+  const eclipticTube = new THREE.Mesh(
+    new THREE.TubeGeometry(eclipticCurve, 72, 0.09, 8, false),
+    new THREE.MeshBasicMaterial({
+      color: 0xa78bfa,
+      transparent: true,
+      opacity: 0.28,
+    })
+  );
+  eclipticGroup.add(eclipticTube);
+
+  // Saturn Ring Texture (shared between sky Saturn & Orbit Monitor Saturn)
+  const saturnRingCanvas = document.createElement('canvas');
+  saturnRingCanvas.width = 256;
+  saturnRingCanvas.height = 64;
+  const srCtx = saturnRingCanvas.getContext('2d');
+  const ringGrad = srCtx.createLinearGradient(0, 0, 256, 0);
+  ringGrad.addColorStop(0.0, 'rgba(254, 240, 138, 0.0)');
+  ringGrad.addColorStop(0.15, 'rgba(253, 224, 71, 0.55)');
+  ringGrad.addColorStop(0.45, 'rgba(251, 191, 36, 0.92)');
+  ringGrad.addColorStop(0.58, 'rgba(15, 23, 42, 0.15)'); // Cassini Division
+  ringGrad.addColorStop(0.66, 'rgba(253, 230, 138, 0.85)');
+  ringGrad.addColorStop(0.9, 'rgba(217, 119, 6, 0.45)');
+  ringGrad.addColorStop(1.0, 'rgba(217, 119, 6, 0.0)');
+  srCtx.fillStyle = ringGrad;
+  srCtx.fillRect(0, 0, 256, 64);
+  const saturnRingTex = new THREE.CanvasTexture(saturnRingCanvas);
+
+  // Jupiter Banded Cloud Texture (shared)
+  const jupCanvas = document.createElement('canvas');
+  jupCanvas.width = 256;
+  jupCanvas.height = 128;
+  const jCtx = jupCanvas.getContext('2d');
+  const bands = ['#d97706', '#fef3c7', '#b45309', '#fde68a', '#92400e', '#fcd34d', '#78350f'];
+  bands.forEach((col, idx) => {
+    jCtx.fillStyle = col;
+    jCtx.fillRect(0, idx * (128 / bands.length), 256, 128 / bands.length + 2);
+  });
+  // Great Red Spot
+  jCtx.fillStyle = '#dc2626';
+  jCtx.beginPath();
+  jCtx.ellipse(150, 82, 22, 12, 0.1, 0, Math.PI * 2);
+  jCtx.fill();
+  const jupTex = new THREE.CanvasTexture(jupCanvas);
+
+  // Sky Planets arrayed along the Ecliptic Arc above the horizon
+  const skyPlanetDefs = [
+    { key: 'mercury', baseT: 0.16, radius: 1.25, color: 0xcbd5e1, emissive: 0x64748b },
+    { key: 'venus', baseT: 0.27, radius: 1.75, color: 0xfef08a, emissive: 0xd97706 },
+    { key: 'mars', baseT: 0.41, radius: 1.55, color: 0xf97316, emissive: 0xc2410c },
+    { key: 'jupiter', baseT: 0.56, radius: 3.35, color: 0xfbbf24, emissive: 0x92400e, map: jupTex },
+    { key: 'saturn', baseT: 0.72, radius: 2.85, color: 0xfde68a, emissive: 0xb45309, hasRings: true },
+    { key: 'uranus', baseT: 0.85, radius: 1.85, color: 0x67e8f9, emissive: 0x0891b2, hasThinRing: true },
+    { key: 'neptune', baseT: 0.95, radius: 1.75, color: 0x60a5fa, emissive: 0x1d4ed8 },
+  ];
+
+  const skyPlanets = [];
+  let saturnSkyGroup = null;
+
+  for (const def of skyPlanetDefs) {
+    const pGroup = new THREE.Group();
+    pGroup.name = `SkyPlanet_${def.key}`;
+    const pMesh = new THREE.Mesh(
+      new THREE.SphereGeometry(def.radius, 32, 32),
+      new THREE.MeshStandardMaterial({
+        color: def.color,
+        map: def.map || null,
+        emissive: def.emissive,
+        emissiveIntensity: 0.55,
+        roughness: 0.5,
+      })
+    );
+    pGroup.add(pMesh);
+
+    if (def.hasRings) {
+      const ringGeom = new THREE.RingGeometry(def.radius * 1.38, def.radius * 2.55, 64);
+      const ringMat = new THREE.MeshBasicMaterial({
+        map: saturnRingTex,
+        color: 0xfef08a,
+        side: THREE.DoubleSide,
+        transparent: true,
+        opacity: 0.92,
+      });
+      const ringMesh = new THREE.Mesh(ringGeom, ringMat);
+      ringMesh.rotation.x = Math.PI / 2.6;
+      ringMesh.rotation.y = 0.35;
+      pGroup.add(ringMesh);
+      saturnSkyGroup = pGroup;
+    } else if (def.hasThinRing) {
+      const uRing = new THREE.Mesh(
+        new THREE.RingGeometry(def.radius * 1.35, def.radius * 1.7, 48),
+        new THREE.MeshBasicMaterial({
+          color: 0xa5f3fc,
+          side: THREE.DoubleSide,
+          transparent: true,
+          opacity: 0.55,
+        })
+      );
+      uRing.rotation.y = 0.4;
+      pGroup.add(uRing);
+    }
+
+    const pt = eclipticCurve.getPoint(def.baseT);
+    pGroup.position.copy(pt);
+    eclipticGroup.add(pGroup);
+    skyPlanets.push({ ...def, group: pGroup, mesh: pMesh });
+  }
+
+  return {
+    skyRoot,
+    sunSkyGroup,
+    sunCoreMesh,
+    sunCoronaSprite,
+    sunSurfTex,
+    sunCoronaTex,
+    sunTex: sunSurfTex,
+    coronaTex: sunCoronaTex,
+    moonSkyCenterGroup,
+    moonSkyOrbitRadius,
+    moonBodyGroup,
+    moonMesh,
+    moonTex,
+    eclipticGroup,
+    eclipticCurve,
+    skyPlanets,
+    saturnSkyGroup,
+    saturnRingTex,
+    saturnTex: saturnRingTex,
+    jupTex,
+    jupiterTex: jupTex,
+  };
+}
+const celestialSky = createCelestialSky();
 
 // ============================================================================
 // Cohesive Orbital Optical Relay Deck (Replacing Gray Grid & Test Primitives)
@@ -929,23 +1168,57 @@ orbitMonitorGroup.add(monitorStandBase, monitorStandPost, monitorHeadGroup);
 
 function updateInSceneMonitorScreen(hovered = false) {
   const isEn = typeof gameState !== 'undefined' && gameState.lang === 'en';
-  const inPass = typeof gameState !== 'undefined' && Boolean(gameState.inPassWindow);
-  const txPct = typeof gameState !== 'undefined' ? Math.round(gameState.txProgress || 0) : 0;
-
   mctx.fillStyle = hovered ? '#071b34' : '#041022';
   mctx.fillRect(0, 0, 512, 320);
 
   // Border glow inside screen
-  mctx.strokeStyle = inPass ? '#10b981' : hovered ? '#7dd3fc' : 'rgba(56, 189, 248, 0.55)';
-  mctx.lineWidth = hovered || inPass ? 6 : 3;
+  mctx.strokeStyle = hovered ? '#7dd3fc' : 'rgba(56, 189, 248, 0.55)';
+  mctx.lineWidth = hovered ? 6 : 3;
   mctx.strokeRect(8, 8, 496, 304);
+
+  // 1. Glowing Sun icon in top-left corner of the monitor screen
+  const sunX = 48;
+  const sunY = 52;
+  const sunGlow = mctx.createRadialGradient(sunX, sunY, 4, sunX, sunY, 34);
+  sunGlow.addColorStop(0, '#ffffff');
+  sunGlow.addColorStop(0.3, '#fef08a');
+  sunGlow.addColorStop(0.65, 'rgba(251, 191, 36, 0.45)');
+  sunGlow.addColorStop(1, 'rgba(245, 158, 11, 0)');
+  mctx.fillStyle = sunGlow;
+  mctx.beginPath();
+  mctx.arc(sunX, sunY, 34, 0, Math.PI * 2);
+  mctx.fill();
 
   // Stylized Earth Icon & Orbit Ring on the left side of the monitor screen
   const cx = 148;
-  const cy = 162;
-  const earthR = 64;
+  const cy = 166;
+  const earthR = 56;
 
-  const grad = mctx.createRadialGradient(cx - 18, cy - 18, 10, cx, cy, earthR);
+  // Outer Lunar Orbit Ellipse & Moving Moon Dot
+  mctx.save();
+  mctx.translate(cx, cy);
+  mctx.rotate(0.18);
+  mctx.strokeStyle = 'rgba(203, 213, 225, 0.42)';
+  mctx.setLineDash([4, 4]);
+  mctx.lineWidth = 1.8;
+  mctx.beginPath();
+  mctx.ellipse(0, 0, 116, 68, 0, 0, Math.PI * 2);
+  mctx.stroke();
+  mctx.setLineDash([]);
+
+  const moonX = Math.cos(orbitSim.moonOrbitAngleRad) * 116;
+  const moonY = Math.sin(orbitSim.moonOrbitAngleRad) * 68;
+  mctx.fillStyle = '#e2e8f0';
+  mctx.beginPath();
+  mctx.arc(moonX, moonY, 9.5, 0, Math.PI * 2);
+  mctx.fill();
+  mctx.fillStyle = '#64748b';
+  mctx.beginPath();
+  mctx.arc(moonX - 2, moonY - 1, 2.5, 0, Math.PI * 2);
+  mctx.fill();
+  mctx.restore();
+
+  const grad = mctx.createRadialGradient(cx - 16, cy - 16, 8, cx, cy, earthR);
   grad.addColorStop(0, '#38bdf8');
   grad.addColorStop(0.55, '#0284c7');
   grad.addColorStop(1, '#082f49');
@@ -958,10 +1231,10 @@ function updateInSceneMonitorScreen(hovered = false) {
   mctx.fillStyle = 'rgba(52, 211, 153, 0.55)';
   mctx.beginPath();
   mctx.ellipse(
-    cx - 14 + Math.sin(orbitSim.earthSpinRad) * 16,
-    cy - 12,
-    22,
-    14,
+    cx - 12 + Math.sin(orbitSim.earthSpinRad) * 14,
+    cy - 10,
+    20,
+    12,
     0.3,
     0,
     Math.PI * 2
@@ -969,77 +1242,82 @@ function updateInSceneMonitorScreen(hovered = false) {
   mctx.fill();
   mctx.beginPath();
   mctx.ellipse(
-    cx + 18 - Math.cos(orbitSim.earthSpinRad) * 14,
-    cy + 16,
-    18,
-    12,
+    cx + 16 - Math.cos(orbitSim.earthSpinRad) * 12,
+    cy + 14,
+    16,
+    10,
     -0.25,
     0,
     Math.PI * 2
   );
   mctx.fill();
 
-  // Inclined Orbit Ellipse around Earth icon + Green Pass Window Arc + Ground Station
+  // Inclined Orbit Ellipse around Earth icon + Green Ground-Station Pass Window Arc
   mctx.save();
   mctx.translate(cx, cy);
   mctx.rotate(-0.38);
-  mctx.strokeStyle = 'rgba(56, 189, 248, 0.72)';
-  mctx.lineWidth = 3.2;
+  mctx.strokeStyle = '#38bdf8';
+  mctx.lineWidth = 3.5;
   mctx.beginPath();
-  mctx.ellipse(0, 0, 96, 44, 0, 0, Math.PI * 2);
+  mctx.ellipse(0, 0, 86, 38, 0, 0, Math.PI * 2);
   mctx.stroke();
 
-  // Green Pass Window Arc [1.05 rad .. 1.95 rad]
-  mctx.strokeStyle = inPass ? '#34d399' : '#10b981';
-  mctx.lineWidth = inPass ? 7.5 : 5.5;
+  // Green Ground Station Pass Window Arc (1.05 rad -> 1.95 rad)
+  mctx.strokeStyle = gameState?.inPassWindow ? '#34d399' : '#10b981';
+  mctx.lineWidth = 7.0;
   mctx.beginPath();
-  mctx.ellipse(0, 0, 96, 44, 0, 1.05, 1.95);
+  mctx.ellipse(0, 0, 86, 38, 0, 1.05, 1.95);
   mctx.stroke();
 
-  // Ground Station Marker on Earth surface at 1.50 rad
-  const gsx = Math.cos(1.5) * 52;
-  const gsy = Math.sin(1.5) * 28;
+  // Ground Station Marker on Pass Window Midpoint
+  const gsx = Math.cos(1.50) * 62;
+  const gsy = Math.sin(1.50) * 28;
   mctx.fillStyle = '#10b981';
   mctx.beginPath();
   mctx.arc(gsx, gsy, 5.5, 0, Math.PI * 2);
   mctx.fill();
-  mctx.strokeStyle = '#a7f3d0';
-  mctx.lineWidth = 1.8;
-  mctx.stroke();
 
   // Moving Suncatcher Marker Dot on the monitor's mini orbit
-  const mx = Math.cos(orbitSim.orbitAngleRad) * 96;
-  const my = Math.sin(orbitSim.orbitAngleRad) * 44;
-  mctx.fillStyle = inPass ? '#34d399' : '#fbbf24';
+  const mx = Math.cos(orbitSim.orbitAngleRad) * 86;
+  const my = Math.sin(orbitSim.orbitAngleRad) * 38;
+  mctx.fillStyle = '#fbbf24';
   mctx.beginPath();
-  mctx.arc(mx, my, 8.5, 0, Math.PI * 2);
+  mctx.arc(mx, my, 8, 0, Math.PI * 2);
   mctx.fill();
   mctx.strokeStyle = '#ffffff';
   mctx.lineWidth = 2.5;
   mctx.stroke();
   mctx.restore();
 
-  // Right-side Call-to-Action Text ("궤도 보기" / "Orbit View")
-  mctx.fillStyle = inPass ? '#6ee7b7' : '#7dd3fc';
-  mctx.font = 'bold 18px "Segoe UI", sans-serif';
-  const passBadgeText = inPass
-    ? isEn
-      ? `PASS ACTIVE · TX ${txPct}%`
-      : `교신 가능 구간 · 송신 ${txPct}%`
-    : `NORAD ${orbitSim.noradId} · TX ${txPct}%`;
-  mctx.fillText(passBadgeText, 256, 108);
+  // Right-side Call-to-Action Text ("궤도 보기" / "Orbit View" + Pass Window indicator)
+  mctx.fillStyle = '#7dd3fc';
+  mctx.font = 'bold 19px "Segoe UI", sans-serif';
+  mctx.fillText('SUNCATCHER · 650 KM', 260, 96);
 
   mctx.fillStyle = '#ffffff';
-  mctx.font = 'bold 42px "Segoe UI", "Malgun Gothic", sans-serif';
-  mctx.fillText(isEn ? '🌍 Orbit View' : '🌍 궤도 보기', 256, 166);
+  mctx.font = 'bold 40px "Segoe UI", "Malgun Gothic", sans-serif';
+  mctx.fillText(isEn ? '🌍 Orbit View' : '🌍 궤도 보기', 256, 150);
+
+  mctx.fillStyle = gameState?.inPassWindow ? '#6ee7b7' : '#fde68a';
+  mctx.font = 'bold 19px "Segoe UI", "Malgun Gothic", sans-serif';
+  mctx.fillText(
+    gameState?.inPassWindow
+      ? isEn
+        ? '📡 IN PASS WINDOW (TX READY)'
+        : '📡 지상국 교신 구간 진입!'
+      : isEn
+        ? '📡 Ground Station Pass Track'
+        : '📡 지상국 교신 궤도 구간 표시',
+    258,
+    192
+  );
 
   mctx.fillStyle = hovered ? '#fde047' : '#bae6fd';
   mctx.font = 'bold 21px "Segoe UI", "Malgun Gothic", sans-serif';
-  const speedTag = orbitSim.timeScale === 1 ? (isEn ? '1× LIVE' : '1× 실시간') : `${orbitSim.timeScale}×`;
   mctx.fillText(
-    isEn ? `▶ Click to Open (${speedTag})` : `▶ 클릭하여 열기 (${speedTag})`,
-    256,
-    218
+    isEn ? '▶ Click to Open (120×)' : '▶ 클릭하여 열기 (120×)',
+    260,
+    236
   );
 
   monitorScreenTex.needsUpdate = true;
@@ -1134,22 +1412,10 @@ const idealNormal = new THREE.Vector3()
 const TARGET_YAW_RAD = Math.atan2(idealNormal.x, idealNormal.z);
 const TARGET_PITCH_RAD = -Math.asin(idealNormal.y);
 
-// Pass Window & Uplink Transmission Configuration ("마지막 교신 / The Final Transmission")
-const PASS_CONFIG = {
-  passStartRad: 1.05,
-  passEndRad: 1.95,
-  groundAngleRad: 1.5,
-  windowDurationSec: 45,
-  passOrbitRateRadPerSec: (1.95 - 1.05) / 45, // 0.02 rad/s during active pass mode
-  approachSec: 5,
-  txDurationSec: 12.0, // ~12 seconds of aligned beam inside pass window reaches 100%
-};
-
-// Game & Mission State
+// Game & Puzzle State
 const gameState = {
-  lang: 'ko',
-  missionPhase: 'briefing', // 'briefing' | 'prep' | 'ready_for_pass' | 'pass_window' | 'transmitting' | 'ground_ack' | 'returning' | 'completed'
-  briefingDone: false,
+  sessionId: null,
+  lang: 'en',
   activeDesignVersion: 1,
   designConfirmed: false,
   approvedDesignVersion: null,
@@ -1164,42 +1430,44 @@ const gameState = {
   beamAngleErrorDeg: null,
   receiverAligned: false,
   receiverColorHex: '#ff2a55',
-  passStarted: false,
-  passActiveMode: false,
-  inPassWindow: false,
-  passMissed: false,
-  passCountdownSec: 0,
-  passRemainingSec: 0,
-  txProgress: 0,
-  txCompleted: false,
-  groundAckReceived: false,
-  returningInProgress: false,
-  returnedToBase: false,
   commsRestored: false,
   doorOpened: false,
   doorOpenProgress: 0,
-  hintActive: false,
   bgmPlaying: false,
-  userMutedBgm: false,
   bgmVolume: 0.42,
   bgmDucked: false,
+  bgmPlaylistMode: true,
+  bgmAutoPrefetch: true,
   argonSpeaking: false,
   lyriaModalOpen: false,
   lyriaGenerating: false,
+  lyriaPrefetching: false,
   lyriaModel: 'lyria-3-clip-preview',
   lyriaAudioDataUrl: null,
   lyriaAudioUrl: '/audio/lyria-bgm-latest.mp3',
   lyriaLyricsText: '<instrumental>',
+  lyriaPlaylist: [],
+  lyriaCurrentTrackIndex: 0,
+  lyriaPromptPool: [],
   autoPlayActive: false,
   reviewingAlignAfterComplete: false,
   lastRetryAction: null,
-  triggeredStoryKeys: new Set(),
-  groundAckTimerId: null,
 };
 
-// Audio / BGM (Gemini Lyria MP3 with Speech Ducking & WAV fallback)
+// Seamless Session Identification
+const rawFetch = window.fetch;
+window.fetch = function (url, options = {}) {
+  const opts = { ...options };
+  opts.headers = { ...(opts.headers || {}) };
+  if (gameState.sessionId && !opts.headers['x-session-id'] && !opts.headers['X-Session-Id']) {
+    opts.headers['X-Session-Id'] = gameState.sessionId;
+  }
+  return rawFetch.call(this, url, opts);
+};
+
+// Audio / BGM (Gemini Lyria Multi-Track Playlist with Auto-Advance, Background Random Gen & Speech Ducking)
 const bgmAudio = new Audio('/audio/lyria-bgm-latest.mp3');
-bgmAudio.loop = true;
+bgmAudio.loop = !gameState.bgmPlaylistMode;
 bgmAudio.volume = 0.42;
 bgmAudio.addEventListener(
   'error',
@@ -1211,18 +1479,25 @@ bgmAudio.addEventListener(
   { once: true }
 );
 
+bgmAudio.addEventListener('ended', () => {
+  if (gameState.bgmPlaylistMode) {
+    void advanceToNextPlaylistTrack(true);
+  } else {
+    bgmAudio.currentTime = 0;
+    void bgmAudio.play().catch(() => {});
+  }
+});
+
 function setBgmDucked(ducked) {
   gameState.bgmDucked = Boolean(ducked);
   gameState.argonSpeaking = Boolean(ducked);
-  if (!gameState.userMutedBgm) {
-    bgmAudio.volume = ducked ? 0.08 : 0.42;
-  }
+  bgmAudio.volume = ducked ? 0.08 : 0.42;
   gameState.bgmVolume = bgmAudio.volume;
   updateHudTranslations();
 }
 
 async function ensureBgmPlaying() {
-  if (gameState.userMutedBgm) return;
+  bgmAudio.loop = !gameState.bgmPlaylistMode;
   if (!gameState.bgmPlaying) {
     try {
       await bgmAudio.play();
@@ -1234,87 +1509,7 @@ async function ensureBgmPlaying() {
   }
 }
 
-// Determine Explicit 8-Step Story Mission Phase
-// ('briefing' -> 'prep' -> 'ready_for_pass' -> 'pass_window' -> 'transmitting' -> 'ground_ack' -> 'returning' -> 'completed')
-function getCurrentMissionPhase() {
-  if (gameState.returnedToBase) return 'completed';
-  if (gameState.returningInProgress) return 'returning';
-  if (gameState.groundAckReceived) return 'ground_ack';
-  if (gameState.reflectorMounted && gameState.loadedReflectorObject) {
-    if (gameState.inPassWindow && gameState.receiverAligned && !gameState.txCompleted) {
-      return 'transmitting';
-    }
-    if (gameState.inPassWindow) {
-      return 'pass_window';
-    }
-    return 'ready_for_pass';
-  }
-  if (
-    gameState.briefingDone ||
-    gameState.designConfirmed ||
-    gameState.designDrawerOpen ||
-    Boolean(gameState.loadedReflectorObject)
-  ) {
-    return 'prep';
-  }
-  return 'briefing';
-}
-
-async function syncMissionTelemetry() {
-  gameState.missionPhase = getCurrentMissionPhase();
-  try {
-    await fetch('/api/mission/telemetry', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        missionPhase: gameState.missionPhase,
-        reflectorMounted: gameState.reflectorMounted,
-        receiverAligned: gameState.receiverAligned,
-        passStarted: gameState.passStarted,
-        passActiveMode: gameState.passActiveMode,
-        txProgress: Number(gameState.txProgress.toFixed(1)),
-        txCompleted: gameState.txCompleted,
-        groundAckReceived: gameState.groundAckReceived,
-        commsRestored: gameState.commsRestored,
-        doorOpened: gameState.doorOpened,
-        returnedToBase: gameState.returnedToBase,
-        beamErrorDeg: gameState.beamAngleErrorDeg,
-        mountedPitchRad: gameState.mountedPitchRad,
-        mountedYawRad: gameState.mountedYawRad,
-        orbitAngleRad: Number(orbitSim.orbitAngleRad.toFixed(4)),
-      }),
-    });
-  } catch {
-    // Ignore transient network errors
-  }
-}
-
-function getAlignmentDirectionHint() {
-  const t = I18N[gameState.lang];
-  if (!t.alignHint) return '';
-  if (gameState.receiverAligned) {
-    return t.alignHint.locked;
-  }
-  const dYawDeg = ((TARGET_YAW_RAD - gameState.mountedYawRad) * 180) / Math.PI;
-  const dPitchDeg = ((TARGET_PITCH_RAD - gameState.mountedPitchRad) * 180) / Math.PI;
-  const yawPart =
-    Math.abs(dYawDeg) < 0.4
-      ? t.alignHint.yawOk
-      : dYawDeg > 0
-        ? t.alignHint.yawRight(Math.abs(dYawDeg).toFixed(1))
-        : t.alignHint.yawLeft(Math.abs(dYawDeg).toFixed(1));
-  const pitchPart =
-    Math.abs(dPitchDeg) < 0.4
-      ? t.alignHint.pitchOk
-      : dPitchDeg > 0
-        ? t.alignHint.pitchUp(Math.abs(dPitchDeg).toFixed(1))
-        : t.alignHint.pitchDown(Math.abs(dPitchDeg).toFixed(1));
-  const errStr =
-    gameState.beamAngleErrorDeg !== null ? gameState.beamAngleErrorDeg.toFixed(1) : '--';
-  return t.alignHint.adjustFormat(yawPart, pitchPart, errStr);
-}
-
-// Compute 3D Optical Reflection & Synchronize Beam + Station Uplink Relay + Airlock Gate State
+// Compute 3D Optical Reflection & Synchronize Beam + Receiver + Gate State
 function updateOpticalPuzzle() {
   // Even before the new 3D reflector is mounted, show the damaged bracket's scattered off-target beam!
   if (!gameState.reflectorMounted || !gameState.loadedReflectorObject) {
@@ -1329,7 +1524,6 @@ function updateOpticalPuzzle() {
     guideMat.color.setHex(0xf43f5e);
     gameState.beamAngleErrorDeg = null;
     gameState.receiverAligned = false;
-    gameState.missionPhase = getCurrentMissionPhase();
     return;
   }
 
@@ -1366,7 +1560,7 @@ function updateOpticalPuzzle() {
   reflectedBeam.group.visible = true;
   reflectedBeam.haloMat.opacity = aligned ? 0.52 : 0.34;
 
-  // Smooth proximity feedback as the player gets closer to the Station Uplink Relay
+  // Smooth proximity feedback as the player gets closer to the receiver
   if (aligned) {
     reflectedBeam.coreMat.color.setHex(0xa7f3d0);
     reflectedBeam.haloMat.color.setHex(0x10b981);
@@ -1397,10 +1591,11 @@ function updateOpticalPuzzle() {
 
   setVolumetricBeamSegment(reflectedBeam, MOUNT_POS, beamEnd);
 
-  const wasAligned = gameState.receiverAligned;
-  gameState.receiverAligned = aligned;
-
   if (aligned) {
+    const wasAligned = gameState.receiverAligned;
+    gameState.receiverAligned = true;
+    gameState.commsRestored = true;
+    gameState.doorOpened = true;
     gameState.receiverColorHex = '#06d6a0';
     receiverSensorMat.color.setHex(0x06d6a0);
     receiverSensorMat.emissive.setHex(0x10b981);
@@ -1408,12 +1603,35 @@ function updateOpticalPuzzle() {
     receiverRingMat.emissive.setHex(0x059669);
     receiverGlowLight.color.setHex(0x10b981);
     receiverGlowLight.intensity = 4.5;
+    doorBeaconMat.color.setHex(0x10b981);
+    doorBeaconMat.emissive.setHex(0x059669);
+    interiorBayCore.material.opacity = 0.72;
+    interiorBayLight.intensity = 4.2;
 
     if (!wasAligned) {
-      triggerStoryLine('beamAligned');
-      void syncMissionTelemetry();
+      gameState.reviewingAlignAfterComplete = false;
+      animateCameraToPreset('completeView', 0.8);
+      void fetch('/api/mission/telemetry', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          reflectorMounted: true,
+          receiverAligned: true,
+          commsRestored: true,
+          doorOpened: true,
+          beamErrorDeg: gameState.beamAngleErrorDeg,
+          mountedPitchRad: gameState.mountedPitchRad,
+          mountedYawRad: gameState.mountedYawRad,
+        }),
+      });
     }
   } else {
+    gameState.receiverAligned = false;
+    gameState.commsRestored = false;
+    gameState.doorOpened = false;
+    gameState.doorOpenProgress = 0;
+    leftDoorPanel.position.x = -0.96;
+    rightDoorPanel.position.x = 0.96;
     gameState.receiverColorHex = '#ff2a55';
     receiverSensorMat.color.setHex(0xff2a55);
     receiverSensorMat.emissive.setHex(0xff1e42);
@@ -1421,30 +1639,12 @@ function updateOpticalPuzzle() {
     receiverRingMat.emissive.setHex(0xe11d48);
     receiverGlowLight.color.setHex(0xf43f5e);
     receiverGlowLight.intensity = 2.4;
-  }
-
-  // Airlock and Comms Restored depend on Ground Control Ack (100% rescue transmission), NOT mere beam alignment!
-  // Once Ground Control Ack is received, the airlock remains unlocked even if reflector angles are adjusted later.
-  if (gameState.groundAckReceived) {
-    gameState.commsRestored = true;
-    gameState.doorOpened = true;
-    doorBeaconMat.color.setHex(0x10b981);
-    doorBeaconMat.emissive.setHex(0x059669);
-    interiorBayCore.material.opacity = 0.78;
-    interiorBayLight.intensity = 4.5;
-  } else {
-    gameState.commsRestored = false;
-    gameState.doorOpened = false;
-    gameState.doorOpenProgress = 0;
-    leftDoorPanel.position.x = -0.96;
-    rightDoorPanel.position.x = 0.96;
-    doorBeaconMat.color.setHex(gameState.txCompleted ? 0xf59e0b : 0xf43f5e);
-    doorBeaconMat.emissive.setHex(gameState.txCompleted ? 0xd97706 : 0xe11d48);
+    doorBeaconMat.color.setHex(0xf43f5e);
+    doorBeaconMat.emissive.setHex(0xe11d48);
     interiorBayCore.material.opacity = 0.15;
     interiorBayLight.intensity = 0.0;
   }
 
-  gameState.missionPhase = getCurrentMissionPhase();
   updateAngleReadout();
   updateHudTranslations();
 }
@@ -1487,17 +1687,6 @@ function updateAngleReadout() {
   const pitchSlider = document.getElementById('pitch-slider');
   if (yawSlider) yawSlider.value = String(gameState.mountedYawRad);
   if (pitchSlider) pitchSlider.value = String(gameState.mountedPitchRad);
-
-  const alignSubEl = document.getElementById('ui-align-sub');
-  if (alignSubEl) {
-    if (gameState.hintActive && !gameState.groundAckReceived) {
-      alignSubEl.textContent = getAlignmentDirectionHint();
-      alignSubEl.style.color = gameState.receiverAligned ? '#6ee7b7' : '#fde68a';
-    } else {
-      alignSubEl.textContent = t.stageCards.alignSub;
-      alignSubEl.style.color = '';
-    }
-  }
 }
 
 // Load Generated 3D Reflector (.glb) into Browser via GLTFLoader
@@ -1541,12 +1730,9 @@ function mountActiveReflectorOnPedestal() {
   }
   reflectorMountPivot.add(gameState.loadedReflectorObject);
   gameState.reflectorMounted = true;
-  gameState.briefingDone = true;
   gameState.designDrawerOpen = false;
   animateCameraToPreset('alignFocus', 0.7);
   updateOpticalPuzzle();
-  triggerStoryLine('mounted');
-  void syncMissionTelemetry();
   return true;
 }
 
@@ -1568,76 +1754,50 @@ function hideAlert() {
   gameState.lastRetryAction = null;
 }
 
-// Non-Overlapping Argon & Ground Control Subtitle + Chat Log
-let speechDuckTimerId = null;
-
+// Argon Subtitle & Chat Log
 function appendDialogueMessage(sender, text) {
   const log = document.getElementById('dialogue-log');
   if (log) {
     const div = document.createElement('div');
-    div.className = sender === 'user' ? 'msg-user' : 'msg-argon';
-    const prefix =
-      sender === 'control'
-        ? gameState.lang === 'en'
-          ? '📡 CONTROL'
-          : '📡 지상 관제국'
-        : sender === 'argon'
-          ? '🤖 ARGON'
-          : '🧑‍🚀 EVA';
-    div.textContent = `${prefix}: ${text}`;
-    if (sender === 'control') {
-      div.style.borderLeftColor = '#10b981';
-      div.style.color = '#a7f3d0';
-    }
+    div.className = sender === 'argon' ? 'msg-argon' : 'msg-user';
+    div.textContent = `${sender === 'argon' ? '🤖 ARGON' : '🧑‍🚀 EVA'}: ${text}`;
     log.appendChild(div);
     log.scrollTop = log.scrollHeight;
   }
-  if (sender === 'argon' || sender === 'control') {
+  if (sender === 'argon') {
     const sub = document.getElementById('argon-subtitle-text');
-    if (sub) {
-      sub.textContent = text;
-      sub.style.color = sender === 'control' ? '#6ee7b7' : '#f1f5f9';
-    }
+    if (sub) sub.textContent = text;
   }
 }
 
 function speakArgonText(text, lang = gameState.lang) {
-  if (speechDuckTimerId) {
-    clearTimeout(speechDuckTimerId);
-    speechDuckTimerId = null;
-  }
   setBgmDucked(true);
   if ('speechSynthesis' in window) {
     try {
       window.speechSynthesis.cancel();
       const utter = new SpeechSynthesisUtterance(text);
       utter.lang = lang === 'en' ? 'en-US' : 'ko-KR';
-      utter.rate = 1.06;
+      utter.rate = 1.05;
       utter.onend = () => setBgmDucked(false);
       utter.onerror = () => setBgmDucked(false);
       window.speechSynthesis.speak(utter);
-      speechDuckTimerId = setTimeout(() => setBgmDucked(false), 3200);
+      setTimeout(() => setBgmDucked(false), 3200);
       return;
     } catch {
       // Fallback below
     }
   }
-  speechDuckTimerId = setTimeout(() => setBgmDucked(false), 2400);
-}
-
-function triggerStoryLine(storyKey, sender = 'argon', force = false) {
-  if (!force && gameState.triggeredStoryKeys.has(storyKey)) return;
-  const lines = I18N[gameState.lang]?.argon?.storyLines;
-  const text = lines?.[storyKey];
-  if (!text) return;
-  gameState.triggeredStoryKeys.add(storyKey);
-  appendDialogueMessage(sender, text);
-  speakArgonText(text, gameState.lang);
+  setTimeout(() => setBgmDucked(false), 2500);
 }
 
 // Determine Active UI Stage ('design' | 'generate' | 'mount' | 'align' | 'completed')
 function getCurrentUiStage() {
-  if (gameState.returnedToBase && !gameState.reviewingAlignAfterComplete) {
+  if (
+    gameState.receiverAligned &&
+    gameState.commsRestored &&
+    gameState.doorOpened &&
+    !gameState.reviewingAlignAfterComplete
+  ) {
     return 'completed';
   }
   if (gameState.reflectorMounted && gameState.loadedReflectorObject) {
@@ -1660,15 +1820,10 @@ function updateSceneHintText() {
   const t = I18N[gameState.lang];
   const hintEl = document.getElementById('mouse-hint-pill');
   const lblMonitor = document.getElementById('label-orbit-monitor');
-  const lblAirlock = document.getElementById('label-airlock');
   const isMonitorHovered = player.hoverTarget === 'monitor';
-  const isAirlockHovered = player.hoverTarget === 'airlock';
 
   if (lblMonitor) {
     lblMonitor.classList.toggle('hovered', isMonitorHovered);
-  }
-  if (lblAirlock) {
-    lblAirlock.classList.toggle('hovered', isAirlockHovered);
   }
   monitorBezelMat.emissiveIntensity = isMonitorHovered ? 2.4 : 1.1;
   monitorGlowLight.intensity = isMonitorHovered ? 2.4 : 1.35;
@@ -1676,10 +1831,6 @@ function updateSceneHintText() {
   if (!hintEl) return;
   if (isMonitorHovered) {
     hintEl.textContent = t.mouseHints.hoverMonitor;
-  } else if (isAirlockHovered) {
-    hintEl.textContent = gameState.doorOpened
-      ? t.mouseHints.hoverAirlockOpen
-      : t.mouseHints.hoverAirlockLocked;
   } else if (player.hoverTarget === 'mount') {
     hintEl.textContent = gameState.reflectorMounted
       ? t.mouseHints.hoverMountAlign
@@ -1691,185 +1842,67 @@ function updateSceneHintText() {
   }
 }
 
-function updateTransmissionHudElements() {
-  const t = I18N[gameState.lang];
-  if (!t.txHud) return;
-
-  const txStateEl = document.getElementById('tx-state-label');
-  const txPctEl = document.getElementById('tx-percent-label');
-  const txFillEl = document.getElementById('tx-progress-fill');
-  const txTimerEl = document.getElementById('tx-pass-timer-text');
-  const startPassBtn = document.getElementById('start-pass-btn');
-  const nextPassBtn = document.getElementById('next-pass-btn');
-  const returnBaseBtn = document.getElementById('return-base-btn');
-
-  const pct = Math.round(gameState.txProgress);
-  if (txPctEl) {
-    txPctEl.textContent = `${pct}%`;
-    txPctEl.style.color = gameState.txCompleted
-      ? '#6ee7b7'
-      : gameState.inPassWindow && gameState.receiverAligned
-        ? '#38bdf8'
-        : '#fde68a';
-  }
-  if (txFillEl) {
-    txFillEl.style.width = `${pct}%`;
-    txFillEl.style.background = gameState.txCompleted
-      ? 'linear-gradient(90deg, #10b981, #34d399)'
-      : 'linear-gradient(90deg, #38bdf8, #10b981)';
-  }
-
-  if (txStateEl && txTimerEl) {
-    if (gameState.returnedToBase) {
-      txStateEl.textContent = t.txHud.stateAck;
-      txStateEl.style.color = '#6ee7b7';
-      txTimerEl.textContent = t.txHud.timerDone;
-    } else if (gameState.groundAckReceived) {
-      txStateEl.textContent = t.txHud.stateAck;
-      txStateEl.style.color = '#6ee7b7';
-      txTimerEl.textContent = t.txHud.timerAckReady;
-    } else if (gameState.txCompleted) {
-      txStateEl.textContent = t.txHud.stateCompleteWaitAck;
-      txStateEl.style.color = '#fde68a';
-      txTimerEl.textContent = t.txHud.timerAckWait;
-    } else if (gameState.inPassWindow) {
-      const rem = Math.ceil(gameState.passRemainingSec);
-      if (gameState.receiverAligned) {
-        txStateEl.textContent = t.txHud.stateTransmitting;
-        txStateEl.style.color = '#34d399';
-        txTimerEl.textContent = t.txHud.timerRemaining(rem);
-      } else {
-        txStateEl.textContent = t.txHud.statePassHoldBeam;
-        txStateEl.style.color = '#fde68a';
-        txTimerEl.textContent = `${t.txHud.timerRemaining(rem)} · ${t.txHud.timerPaused}`;
-      }
-    } else if (gameState.passMissed) {
-      txStateEl.textContent = t.txHud.statePassMissed;
-      txStateEl.style.color = '#fca5a5';
-      txTimerEl.textContent = t.txHud.timerPaused;
-    } else if (gameState.passActiveMode) {
-      txStateEl.textContent = t.txHud.statePassApproaching;
-      txStateEl.style.color = '#38bdf8';
-      txTimerEl.textContent = t.txHud.timerApproaching(Math.ceil(gameState.passCountdownSec));
-    } else {
-      txStateEl.textContent = t.txHud.stateStandby;
-      txStateEl.style.color = '#94a3b8';
-      txTimerEl.textContent = t.txHud.timerStandby;
-    }
-  }
-
-  if (startPassBtn) {
-    const showStart =
-      gameState.reflectorMounted &&
-      !gameState.passActiveMode &&
-      !gameState.inPassWindow &&
-      !gameState.passMissed &&
-      !gameState.txCompleted;
-    startPassBtn.style.display = showStart ? 'inline-flex' : 'none';
-    startPassBtn.textContent = t.stageCards.startPassBtn;
-  }
-  if (nextPassBtn) {
-    const showNext =
-      gameState.reflectorMounted &&
-      !gameState.txCompleted &&
-      (gameState.passMissed || (!gameState.inPassWindow && gameState.passActiveMode && gameState.passCountdownSec > 15));
-    nextPassBtn.style.display = showNext ? 'inline-flex' : 'none';
-    nextPassBtn.textContent = t.stageCards.nextPassBtn;
-  }
-  if (returnBaseBtn) {
-    const showReturn = gameState.groundAckReceived && !gameState.returnedToBase;
-    returnBaseBtn.style.display = showReturn ? 'inline-flex' : 'none';
-    returnBaseBtn.textContent = t.stageCards.returnToBaseBtn;
-  }
-}
-
 function updateHudTranslations() {
   const t = I18N[gameState.lang];
   document.documentElement.lang = gameState.lang;
-  gameState.missionPhase = getCurrentMissionPhase();
 
   // Top Bar
   document.getElementById('lang-toggle-btn').textContent = t.switchLangBtn;
+  const trackCount = gameState.lyriaPlaylist.length;
+  const trackIdxBadge =
+    trackCount > 0 ? ` (${(gameState.lyriaCurrentTrackIndex % trackCount) + 1}/${trackCount})` : '';
   document.getElementById('bgm-toggle-btn').textContent = gameState.bgmPlaying
-    ? t.menu.bgmOn
-    : t.menu.bgmBtn;
-  document.getElementById('guide-btn').textContent = t.menu.guideBtn;
-  const autoPlayBtn = document.getElementById('autoplay-btn');
-  if (autoPlayBtn) {
-    autoPlayBtn.textContent = gameState.autoPlayActive
-      ? t.menu.autoPlayRunning
-      : t.menu.autoPlayBtn;
+    ? `${t.menu.bgmOn}${trackIdxBadge}`
+    : `${t.menu.bgmBtn}${trackIdxBadge}`;
+  const bgmNextBtn = document.getElementById('bgm-next-btn');
+  if (bgmNextBtn && t.menu.bgmNextBtn) {
+    bgmNextBtn.textContent = t.menu.bgmNextBtn;
   }
+  document.getElementById('guide-btn').textContent = t.menu.guideBtn;
+  document.getElementById('autoplay-btn').textContent = gameState.autoPlayActive
+    ? t.menu.autoPlayRunning
+    : t.menu.autoPlayBtn;
   document.getElementById('details-toggle-btn').textContent = t.menu.detailsBtn;
   document.getElementById('reset-cam-btn').textContent = t.menu.centerCamBtn;
 
-  // 5-Step Progress Track (1. 설계·확인 -> 2. 3D 생성 -> 3. 장착 -> 4. 교신·송신 -> 5. 기지 귀환)
+  // Step Pills
   const stage = getCurrentUiStage();
   const stepDesign = document.getElementById('step-pill-design');
+  const stepConfirm = document.getElementById('step-pill-confirm');
   const stepGen = document.getElementById('step-pill-generate');
   const stepMount = document.getElementById('step-pill-mount');
   const stepAlign = document.getElementById('step-pill-align');
-  const stepReturn = document.getElementById('step-pill-return');
 
-  if (stepDesign) stepDesign.textContent = t.steps.design;
-  if (stepGen) stepGen.textContent = t.steps.generate;
-  if (stepMount) stepMount.textContent = t.steps.mount;
-  if (stepAlign) stepAlign.textContent = t.steps.align;
-  if (stepReturn) stepReturn.textContent = t.steps.returnBase;
+  stepDesign.textContent = t.steps.design;
+  stepConfirm.textContent = t.steps.confirm;
+  stepGen.textContent = t.steps.generate;
+  stepMount.textContent = t.steps.mount;
+  stepAlign.textContent = t.steps.align;
 
   const setPillState = (el, isDone, isActive) => {
-    if (!el) return;
     el.className = `step-pill${isActive ? ' active' : isDone ? ' done' : ''}`;
   };
 
-  setPillState(stepDesign, gameState.designConfirmed || gameState.reflectorMounted, stage === 'design');
-  setPillState(
-    stepGen,
-    Boolean(gameState.loadedReflectorObject) && (stage !== 'generate' || gameState.reflectorMounted),
-    stage === 'generate'
-  );
+  setPillState(stepDesign, stage !== 'design' || gameState.designDrawerOpen === false, stage === 'design' && gameState.designDrawerOpen);
+  setPillState(stepConfirm, gameState.designConfirmed, stage === 'design' && !gameState.designDrawerOpen);
+  setPillState(stepGen, Boolean(gameState.loadedReflectorObject), stage === 'generate');
   setPillState(stepMount, gameState.reflectorMounted, stage === 'mount');
-  setPillState(
-    stepAlign,
-    gameState.groundAckReceived,
-    stage === 'align' && !gameState.groundAckReceived
-  );
-  setPillState(
-    stepReturn,
-    gameState.returnedToBase,
-    stage === 'align' && gameState.groundAckReceived && !gameState.returnedToBase
-  );
+  setPillState(stepAlign, gameState.receiverAligned, stage === 'align');
 
-  // Objective Single Sentence in Top Bar
+  // Objective Single Sentence
   const objText = document.getElementById('mission-phase-text');
-  if (objText) {
-    if (gameState.returnedToBase) {
-      objText.textContent = t.objectives.completed;
-    } else if (gameState.returningInProgress) {
-      objText.textContent = t.objectives.returning;
-    } else if (gameState.groundAckReceived) {
-      objText.textContent = t.objectives.ground_ack;
-    } else if (stage === 'align') {
-      if (gameState.inPassWindow && gameState.receiverAligned) {
-        objText.textContent = t.objectives.transmitting;
-      } else if (gameState.inPassWindow) {
-        objText.textContent = t.objectives.pass_window;
-      } else if (gameState.passMissed) {
-        objText.textContent = t.objectives.pass_missed;
-      } else if (gameState.passActiveMode) {
-        objText.textContent = t.objectives.pass_approaching;
-      } else {
-        objText.textContent = t.objectives.ready_for_pass;
-      }
-    } else if (stage === 'mount') {
-      objText.textContent = t.objectives.mount;
-    } else if (stage === 'generate') {
-      objText.textContent = t.objectives.generate;
-    } else if (gameState.designDrawerOpen) {
-      objText.textContent = t.objectives.design;
-    } else {
-      objText.textContent = t.objectives.confirm;
-    }
+  if (stage === 'completed') {
+    objText.textContent = t.objectives.completed;
+  } else if (stage === 'align') {
+    objText.textContent = t.objectives.align;
+  } else if (stage === 'mount') {
+    objText.textContent = t.objectives.mount;
+  } else if (stage === 'generate') {
+    objText.textContent = t.objectives.generate;
+  } else if (gameState.designDrawerOpen) {
+    objText.textContent = t.objectives.design;
+  } else {
+    objText.textContent = t.objectives.confirm;
   }
 
   // Show ONLY the active stage section & hide stage card on mission completion
@@ -1904,12 +1937,6 @@ function updateHudTranslations() {
     gameState.approvedDesignVersion || gameState.activeDesignVersion
   );
   document.getElementById('confirm-design-btn').textContent = t.stageCards.confirmDesignBtn;
-  const reuseBtn = document.getElementById('reuse-reflector-btn');
-  if (reuseBtn) {
-    const canReuse = Boolean(gameState.loadedReflectorObject && gameState.activeReflectorMeta);
-    reuseBtn.style.display = canReuse ? 'inline-flex' : 'none';
-    reuseBtn.textContent = t.stageCards.reuseReflectorBtn;
-  }
   document.getElementById('toggle-design-drawer-btn').textContent = gameState.designDrawerOpen
     ? t.stageCards.closeDesignBtn
     : t.stageCards.openDesignBtn;
@@ -1928,23 +1955,18 @@ function updateHudTranslations() {
   document.getElementById('equip-mount-btn').textContent = t.stageCards.equipMountBtn;
 
   document.getElementById('ui-align-title').textContent = t.stageCards.alignTitle;
+  document.getElementById('ui-align-sub').textContent = t.stageCards.alignSub;
   document.getElementById('ui-error-deg-label').textContent = t.stageCards.errorDegLabel;
   document.getElementById('ui-yaw-label').textContent = t.stageCards.yawSliderLabel;
   document.getElementById('ui-pitch-label').textContent = t.stageCards.pitchSliderLabel;
   document.getElementById('align-assist-btn').textContent = t.stageCards.snapOptimalBtn;
   document.getElementById('redesign-from-align-btn').textContent = t.stageCards.remountOrRedesignBtn;
 
-  updateAngleReadout();
-  updateTransmissionHudElements();
-
   // Completion Banner
   document.getElementById('ui-complete-badge').textContent = t.completeBanner.badge;
   document.getElementById('ui-complete-title').textContent = t.completeBanner.title;
   document.getElementById('ui-complete-sub').textContent = t.completeBanner.subtitle;
-  const restartBtn = document.getElementById('restart-mission-btn');
-  if (restartBtn) {
-    restartBtn.textContent = t.completeBanner.restartMissionBtn;
-  }
+  document.getElementById('complete-adjust-btn').textContent = t.completeBanner.adjustAgainBtn;
   document.getElementById('complete-new-design-btn').textContent = t.completeBanner.newDesignBtn;
 
   // Bottom Argon Bar
@@ -1958,30 +1980,43 @@ function updateHudTranslations() {
   const lblEmitter = document.getElementById('label-emitter');
   const lblReflector = document.getElementById('label-reflector');
   const lblReceiver = document.getElementById('label-receiver');
-  const lblAirlock = document.getElementById('label-airlock');
   const lblMonitor = document.getElementById('label-orbit-monitor');
-  if (lblEmitter && t.worldLabels) {
-    lblEmitter.textContent = t.worldLabels.emitter;
+  const lblSun = document.getElementById('label-sun');
+  const lblMoon = document.getElementById('label-moon');
+  const lblSolar = document.getElementById('label-solar-system');
+  if (lblEmitter) {
+    lblEmitter.textContent = gameState.lang === 'en' ? '☀️ Laser Emitter' : '☀️ 입사광 발신기';
   }
-  if (lblReflector && t.worldLabels) {
+  if (lblReflector) {
     lblReflector.textContent = gameState.reflectorMounted
-      ? t.worldLabels.reflectorMounted
-      : t.worldLabels.reflectorDamaged;
+      ? gameState.lang === 'en'
+        ? '🪞 3D Reflector (Mounted)'
+        : '🪞 3D 반사판 (장착됨)'
+      : gameState.lang === 'en'
+        ? '🪞 Reflector Mount (Damaged)'
+        : '🪞 반사판 마운트 (교체 필요)';
   }
-  if (lblReceiver && t.worldLabels) {
+  if (lblReceiver) {
     lblReceiver.textContent = gameState.receiverAligned
-      ? t.worldLabels.receiverLocked
-      : t.worldLabels.receiverTarget;
+      ? gameState.lang === 'en'
+        ? '🟢 Optical Receiver (LOCKED)'
+        : '🟢 광수신기 (연결 완료)'
+      : gameState.lang === 'en'
+        ? '🎯 Optical Receiver (Target)'
+        : '🎯 광수신기 (목표)';
     lblReceiver.classList.toggle('locked', gameState.receiverAligned);
-  }
-  if (lblAirlock && t.worldLabels) {
-    lblAirlock.textContent = gameState.doorOpened
-      ? t.worldLabels.airlockOpen
-      : t.worldLabels.airlockLocked;
-    lblAirlock.classList.toggle('open', gameState.doorOpened);
   }
   if (lblMonitor && t.orbitMonitor) {
     lblMonitor.textContent = t.orbitMonitor.worldTag;
+  }
+  if (lblSun && t.orbitMonitor?.sunTag) {
+    lblSun.textContent = t.orbitMonitor.sunTag;
+  }
+  if (lblMoon && t.orbitMonitor?.moonTag) {
+    lblMoon.textContent = t.orbitMonitor.moonTag;
+  }
+  if (lblSolar && t.orbitMonitor?.solarTag) {
+    lblSolar.textContent = t.orbitMonitor.solarTag;
   }
 
   // Orbit Monitor Modal Texts
@@ -1991,20 +2026,32 @@ function updateHudTranslations() {
     const omClose = document.getElementById('close-orbit-modal-btn');
     const omMarkerTitle = document.getElementById('ui-orbit-marker-title');
     const omMarkerDir = document.getElementById('ui-orbit-marker-dir');
-    const omGroundLbl = document.getElementById('orbit-ground-label');
     const omLegRev = document.getElementById('ui-orbit-legend-rev');
     const omLegSpin = document.getElementById('ui-orbit-legend-spin');
     const omLegSync = document.getElementById('ui-orbit-legend-sync');
+    const omModeEarthBtn = document.getElementById('orbit-mode-earth-btn');
+    const omModeSolarBtn = document.getElementById('orbit-mode-solar-btn');
+    const omPipBadge = document.getElementById('orbit-solar-pip-badge');
     if (omTitle) omTitle.textContent = t.orbitMonitor.modalTitle;
     if (omMeta) omMeta.textContent = t.orbitMonitor.metaBadge;
     if (omClose) omClose.textContent = t.orbitMonitor.closeBtn;
     if (omMarkerTitle) omMarkerTitle.textContent = `🛰️ ${t.orbitMonitor.markerLabel}`;
     if (omMarkerDir) omMarkerDir.textContent = t.orbitMonitor.directionLabel;
-    if (omGroundLbl) omGroundLbl.textContent = t.orbitMonitor.groundStationLabel;
     if (omLegRev) omLegRev.textContent = t.orbitMonitor.legendOrbit;
     if (omLegSpin) omLegSpin.textContent = t.orbitMonitor.legendEarthSpin;
     if (omLegSync) omLegSync.textContent = t.orbitMonitor.legendSync;
-    updateOrbitMonitorHudLabels();
+    if (omModeEarthBtn && t.orbitMonitor.modeEarthBtn) {
+      omModeEarthBtn.textContent = t.orbitMonitor.modeEarthBtn;
+      omModeEarthBtn.classList.toggle('active', orbitSim.orbitViewMode === 'earth');
+    }
+    if (omModeSolarBtn && t.orbitMonitor.modeSolarBtn) {
+      omModeSolarBtn.textContent = t.orbitMonitor.modeSolarBtn;
+      omModeSolarBtn.classList.toggle('active', orbitSim.orbitViewMode === 'solar');
+    }
+    if (omPipBadge && t.orbitMonitor.pipBadge) {
+      omPipBadge.textContent = t.orbitMonitor.pipBadge;
+      omPipBadge.style.display = orbitSim.orbitViewMode === 'earth' ? 'block' : 'none';
+    }
   }
 
   // Details Drawer Telemetry
@@ -2044,12 +2091,8 @@ function updateHudTranslations() {
   document.getElementById('ui-guide-controls').innerHTML = t.guide.controls
     .map((c) => `<li>${c}</li>`)
     .join('');
-  const guideDemoTitle = document.getElementById('ui-guide-demo-title');
-  const guideDemoDesc = document.getElementById('ui-guide-demo-desc');
-  if (guideDemoTitle && t.guide.demoTitle) guideDemoTitle.textContent = t.guide.demoTitle;
-  if (guideDemoDesc && t.guide.demoDesc) guideDemoDesc.textContent = t.guide.demoDesc;
 
-  // Lyria Music Generation Studio Modal & Top Button
+  // Lyria Music Generation Studio & Playlist Modal & Top Button
   const lyriaBtn = document.getElementById('lyria-studio-btn');
   if (lyriaBtn && t.menu.lyriaStudioBtn) {
     lyriaBtn.textContent = t.menu.lyriaStudioBtn;
@@ -2058,6 +2101,10 @@ function updateHudTranslations() {
     const lmTitle = document.getElementById('ui-lyria-modal-title');
     const lmMeta = document.getElementById('ui-lyria-modal-meta');
     const lmClose = document.getElementById('close-lyria-modal-btn');
+    const lmPlaylistTitle = document.getElementById('ui-lyria-playlist-title');
+    const lmModeBtn = document.getElementById('lyria-playlist-mode-btn');
+    const lmSkipBtn = document.getElementById('lyria-skip-next-btn');
+    const lmRandomGenBtn = document.getElementById('lyria-random-gen-btn');
     const lmModelLbl = document.getElementById('ui-lyria-model-label');
     const lmOptClip = document.getElementById('ui-lyria-opt-clip');
     const lmOptFull = document.getElementById('ui-lyria-opt-full');
@@ -2065,6 +2112,7 @@ function updateHudTranslations() {
     const lmPreAmb = document.getElementById('lyria-preset-ambient');
     const lmPreVoc = document.getElementById('lyria-preset-vocal');
     const lmPrePul = document.getElementById('lyria-preset-pulse');
+    const lmPreRnd = document.getElementById('lyria-preset-random');
     const lmGenBtn = document.getElementById('lyria-generate-btn');
     const lmApplyBtn = document.getElementById('lyria-apply-bgm-btn');
     const lmDlBtn = document.getElementById('lyria-download-link');
@@ -2072,6 +2120,22 @@ function updateHudTranslations() {
     if (lmTitle) lmTitle.textContent = t.lyriaModal.modalTitle;
     if (lmMeta) lmMeta.textContent = t.lyriaModal.metaBadge;
     if (lmClose) lmClose.textContent = t.lyriaModal.closeBtn;
+    if (lmPlaylistTitle && t.lyriaModal.playlistTitle && Array.isArray(gameState.lyriaPlaylist)) {
+      lmPlaylistTitle.textContent = `${t.lyriaModal.playlistTitle} (${gameState.lyriaPlaylist.length})`;
+    }
+    if (lmModeBtn) {
+      lmModeBtn.textContent = gameState.bgmPlaylistMode
+        ? t.lyriaModal.playlistModeOn
+        : t.lyriaModal.playlistModeOff;
+      lmModeBtn.classList.toggle('lyria-mode-btn-active', Boolean(gameState.bgmPlaylistMode));
+    }
+    if (lmSkipBtn && t.lyriaModal.skipNextBtn) lmSkipBtn.textContent = t.lyriaModal.skipNextBtn;
+    if (lmRandomGenBtn && t.lyriaModal.randomGenBtn) {
+      lmRandomGenBtn.textContent = gameState.lyriaGenerating
+        ? t.lyriaModal.generatingBtn
+        : t.lyriaModal.randomGenBtn;
+      lmRandomGenBtn.disabled = gameState.lyriaGenerating;
+    }
     if (lmModelLbl) lmModelLbl.textContent = t.lyriaModal.modelLabel;
     if (lmOptClip) lmOptClip.textContent = t.lyriaModal.clipOption;
     if (lmOptFull) lmOptFull.textContent = t.lyriaModal.fullOption;
@@ -2079,6 +2143,7 @@ function updateHudTranslations() {
     if (lmPreAmb) lmPreAmb.textContent = t.lyriaModal.presetAmbient;
     if (lmPreVoc) lmPreVoc.textContent = t.lyriaModal.presetVocal;
     if (lmPrePul) lmPrePul.textContent = t.lyriaModal.presetPulse;
+    if (lmPreRnd && t.lyriaModal.presetRandom) lmPreRnd.textContent = t.lyriaModal.presetRandom;
     if (lmGenBtn) {
       lmGenBtn.textContent = gameState.lyriaGenerating
         ? t.lyriaModal.generatingBtn
@@ -2088,6 +2153,9 @@ function updateHudTranslations() {
     if (lmApplyBtn) lmApplyBtn.textContent = t.lyriaModal.applyBgmBtn;
     if (lmDlBtn) lmDlBtn.textContent = t.lyriaModal.downloadBtn;
     if (lmLyricsLbl) lmLyricsLbl.textContent = t.lyriaModal.lyricsLabel;
+    if (typeof renderLyriaPlaylistQueue === 'function') {
+      renderLyriaPlaylistQueue();
+    }
   }
 
   updateInSceneMonitorScreen(player.hoverTarget === 'monitor');
@@ -2096,13 +2164,29 @@ function updateHudTranslations() {
 
 // Project 3D Positions to 2D Floating Labels
 const tempProjVec = new THREE.Vector3();
+const tempSkySunPos = new THREE.Vector3();
+const tempSkyMoonPos = new THREE.Vector3();
+const tempSkySolarPos = new THREE.Vector3();
+
 function updateWorldLabels() {
+  scene.updateMatrixWorld();
   camera.updateMatrixWorld();
+
+  celestialSky.sunSkyGroup.getWorldPosition(tempSkySunPos);
+  celestialSky.moonBodyGroup.getWorldPosition(tempSkyMoonPos);
+  if (celestialSky.saturnSkyGroup) {
+    celestialSky.saturnSkyGroup.getWorldPosition(tempSkySolarPos);
+  } else {
+    tempSkySolarPos.set(16, 39, -148);
+  }
+
   const items = [
+    { el: document.getElementById('label-sun'), pos: tempSkySunPos, offsetY: 11.2 },
+    { el: document.getElementById('label-moon'), pos: tempSkyMoonPos, offsetY: 6.8 },
+    { el: document.getElementById('label-solar-system'), pos: tempSkySolarPos, offsetY: 5.2 },
     { el: document.getElementById('label-emitter'), pos: EMITTER_POS, offsetY: 0.65 },
     { el: document.getElementById('label-reflector'), pos: MOUNT_POS, offsetY: 1.45 },
     { el: document.getElementById('label-receiver'), pos: RECEIVER_POS, offsetY: 0.85 },
-    { el: document.getElementById('label-airlock'), pos: GATE_POS, offsetY: 3.72 },
     { el: document.getElementById('label-orbit-monitor'), pos: ORBIT_MONITOR_POS, offsetY: 0.58 },
   ];
   for (const item of items) {
@@ -2110,12 +2194,16 @@ function updateWorldLabels() {
     tempProjVec.copy(item.pos);
     tempProjVec.y += item.offsetY;
     tempProjVec.project(camera);
-    if (tempProjVec.z > 1) {
+    if (tempProjVec.z > 1 || tempProjVec.z < -1) {
       item.el.style.display = 'none';
       continue;
     }
     const x = (tempProjVec.x * 0.5 + 0.5) * window.innerWidth;
     const y = (-tempProjVec.y * 0.5 + 0.5) * window.innerHeight;
+    if (x < 24 || x > window.innerWidth - 24 || y < 58 || y > window.innerHeight - 40) {
+      item.el.style.display = 'none';
+      continue;
+    }
     item.el.style.display = 'block';
     item.el.style.left = `${x}px`;
     item.el.style.top = `${y}px`;
@@ -2137,23 +2225,22 @@ document.getElementById('lang-toggle-btn').addEventListener('click', async () =>
 
 document.getElementById('bgm-toggle-btn').addEventListener('click', async () => {
   if (bgmAudio.paused) {
-    gameState.userMutedBgm = false;
     await ensureBgmPlaying();
   } else {
-    gameState.userMutedBgm = true;
     bgmAudio.pause();
     gameState.bgmPlaying = false;
   }
   updateHudTranslations();
 });
 
-// Gemini Lyria Music Generation Studio Handlers
+// Gemini Lyria Music Generation Studio & Continuous Random Prompt Playlist Handlers
 const lyriaModalEl = document.getElementById('lyria-modal');
 const lyriaStudioBtn = document.getElementById('lyria-studio-btn');
 const closeLyriaModalBtn = document.getElementById('close-lyria-modal-btn');
 
 function openLyriaModal() {
   gameState.lyriaModalOpen = true;
+  renderLyriaPlaylistQueue();
   lyriaModalEl?.classList.add('open');
 }
 
@@ -2167,6 +2254,245 @@ lyriaStudioBtn?.addEventListener('click', () => {
 });
 closeLyriaModalBtn?.addEventListener('click', () => {
   closeLyriaModal();
+});
+
+function renderLyriaPlaylistQueue() {
+  const listEl = document.getElementById('lyria-playlist-items');
+  if (!listEl) return;
+  const playlist = gameState.lyriaPlaylist || [];
+  if (playlist.length === 0) {
+    listEl.innerHTML = `<div style="font-size:11.5px;color:#94a3b8;padding:4px;">${
+      gameState.lang === 'en' ? 'Loading orbital playlist...' : '우주 플레이리스트 불러오는 중...'
+    }</div>`;
+    return;
+  }
+
+  listEl.innerHTML = '';
+  playlist.forEach((track, idx) => {
+    const isActive = idx === gameState.lyriaCurrentTrackIndex;
+    const itemBtn = document.createElement('button');
+    itemBtn.type = 'button';
+    itemBtn.className = `lyria-playlist-item${isActive ? ' active' : ''}`;
+
+    const titleText =
+      gameState.lang === 'en'
+        ? track.titleEn || track.titleKo || `Orbital Track #${idx + 1}`
+        : track.titleKo || track.titleEn || `우주 트랙 #${idx + 1}`;
+    const subPrompt = String(track.input || '').slice(0, 72);
+    const kbText = track.byteLength ? `${(track.byteLength / 1024).toFixed(0)} KB` : 'MP3';
+    const stateLabel = isActive
+      ? gameState.bgmPlaying
+        ? gameState.lang === 'en'
+          ? '🔊 Playing'
+          : '🔊 재생 중'
+        : gameState.lang === 'en'
+          ? '⏸ Selected'
+          : '⏸ 선택됨'
+      : gameState.lang === 'en'
+        ? '▶ Play'
+        : '▶ 재생';
+
+    itemBtn.innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:2px;min-width:0;flex:1;">
+        <div style="font-size:12px;font-weight:700;color:${isActive ? '#a7f3d0' : '#f1f5f9'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+          #${idx + 1} · ${titleText}
+        </div>
+        <div style="font-size:10.5px;color:#94a3b8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+          ${subPrompt}...
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+        <span style="font-size:10px;color:#7dd3fc;">${kbText}</span>
+        <span class="badge ${isActive ? 'badge-ok' : 'badge-info'}" style="font-size:10.5px;">${stateLabel}</span>
+      </div>
+    `;
+    itemBtn.addEventListener('click', () => {
+      void playLyriaPlaylistTrack(idx, true);
+    });
+    listEl.appendChild(itemBtn);
+  });
+}
+
+async function playLyriaPlaylistTrack(index, shouldPlay = true) {
+  const playlist = gameState.lyriaPlaylist || [];
+  if (playlist.length === 0) {
+    if (shouldPlay) await applyLyriaTrackToBgm();
+    return;
+  }
+  const safeIndex = ((index % playlist.length) + playlist.length) % playlist.length;
+  const track = playlist[safeIndex];
+  gameState.lyriaCurrentTrackIndex = safeIndex;
+
+  const audioSrc = track.audioDataUrl || track.audioUrl || '/audio/lyria-bgm-latest.mp3';
+  gameState.lyriaModel = track.model || 'lyria-3-clip-preview';
+  gameState.lyriaAudioUrl = track.audioUrl || audioSrc;
+  gameState.lyriaAudioDataUrl = track.audioDataUrl || null;
+  gameState.lyriaLyricsText = track.text || '<instrumental>';
+
+  const playerEl = document.getElementById('lyria-audio-player');
+  const downloadEl = document.getElementById('lyria-download-link');
+  const lyricsEl = document.getElementById('lyria-lyrics-output');
+  const badgeEl = document.getElementById('lyria-track-badge');
+  const mimeInfoEl = document.getElementById('lyria-mime-info');
+  const promptInput = document.getElementById('lyria-prompt-input');
+
+  if (playerEl) playerEl.src = audioSrc;
+  if (downloadEl) {
+    downloadEl.href = audioSrc;
+    downloadEl.download = `suncatcher-track-${safeIndex + 1}-${gameState.lyriaModel}.mp3`;
+  }
+  if (lyricsEl) lyricsEl.textContent = gameState.lyriaLyricsText;
+  if (badgeEl) {
+    const titleLabel =
+      gameState.lang === 'en'
+        ? track.titleEn || track.titleKo || gameState.lyriaModel
+        : track.titleKo || track.titleEn || gameState.lyriaModel;
+    badgeEl.textContent = `#${safeIndex + 1} ${titleLabel} · ${track.mimeType || 'audio/mpeg'}`;
+  }
+  if (mimeInfoEl && track.byteLength) {
+    mimeInfoEl.textContent = `${(track.byteLength / 1024).toFixed(1)} KB MP3`;
+  }
+  if (promptInput && track.input) {
+    promptInput.value = track.input;
+  }
+
+  bgmAudio.src = audioSrc;
+  bgmAudio.loop = !gameState.bgmPlaylistMode;
+  bgmAudio.volume = gameState.bgmDucked ? 0.08 : 0.42;
+
+  if (shouldPlay || gameState.bgmPlaying) {
+    try {
+      await bgmAudio.play();
+      gameState.bgmPlaying = true;
+    } catch {
+      gameState.bgmPlaying = true;
+    }
+  }
+  updateHudTranslations();
+}
+
+async function prefetchNextRandomLyriaTrack() {
+  if (gameState.lyriaPrefetching || gameState.lyriaGenerating) return null;
+  if ((gameState.lyriaPlaylist?.length || 0) >= 8) return null;
+
+  gameState.lyriaPrefetching = true;
+  const statusEl = document.getElementById('lyria-status-text');
+  if (statusEl) {
+    statusEl.style.color = '#7dd3fc';
+    statusEl.textContent = I18N[gameState.lang].lyriaModal.statusAutoGenerating;
+  }
+
+  try {
+    const excludePrompts = (gameState.lyriaPlaylist || [])
+      .map((t) => t.promptId || t.input)
+      .filter(Boolean);
+    const res = await fetch('/api/lyria/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'lyria-3-clip-preview',
+        randomPrompt: true,
+        excludePrompts,
+      }),
+    });
+    const data = await res.json();
+    if (res.ok && !data.error) {
+      if (Array.isArray(data.playlist) && data.playlist.length > 0) {
+        gameState.lyriaPlaylist = data.playlist;
+      } else if (data.audioUrl) {
+        gameState.lyriaPlaylist.push({
+          trackId: data.interactionId,
+          promptId: data.promptId,
+          titleKo: data.titleKo,
+          titleEn: data.titleEn,
+          model: data.model,
+          input: data.input,
+          mimeType: data.mimeType || 'audio/mpeg',
+          text: data.text || '<instrumental>',
+          audioUrl: data.audioUrl,
+          byteLength: data.byteLength,
+        });
+      }
+      if (statusEl) {
+        statusEl.style.color = '#6ee7b7';
+        statusEl.textContent = I18N[gameState.lang].lyriaModal.statusReady;
+      }
+      updateHudTranslations();
+      return data;
+    }
+  } catch {
+    // Silent background prefetch fallback
+  } finally {
+    gameState.lyriaPrefetching = false;
+  }
+  return null;
+}
+
+async function advanceToNextPlaylistTrack(fromEndedEvent = false) {
+  const playlist = gameState.lyriaPlaylist || [];
+  if (playlist.length === 0) {
+    await ensureBgmPlaying();
+    return;
+  }
+  const nextIndex = (gameState.lyriaCurrentTrackIndex + 1) % playlist.length;
+  await playLyriaPlaylistTrack(nextIndex, true);
+
+  // While playing in Continuous Playlist Mode, automatically generate a new random track in the background
+  // when reaching the end of the current queue (up to 8 tracks) so the soundtrack keeps evolving!
+  if (
+    gameState.bgmPlaylistMode &&
+    gameState.bgmAutoPrefetch &&
+    (fromEndedEvent || nextIndex === 0 || playlist.length < 5) &&
+    playlist.length < 8
+  ) {
+    void prefetchNextRandomLyriaTrack();
+  }
+}
+
+document.getElementById('bgm-next-btn')?.addEventListener('click', () => {
+  void advanceToNextPlaylistTrack(false);
+});
+document.getElementById('lyria-skip-next-btn')?.addEventListener('click', () => {
+  void advanceToNextPlaylistTrack(false);
+});
+
+document.getElementById('lyria-playlist-mode-btn')?.addEventListener('click', () => {
+  gameState.bgmPlaylistMode = !gameState.bgmPlaylistMode;
+  bgmAudio.loop = !gameState.bgmPlaylistMode;
+  updateHudTranslations();
+});
+
+function rollRandomPromptIntoTextarea() {
+  const pool = gameState.lyriaPromptPool || [];
+  const inputEl = document.getElementById('lyria-prompt-input');
+  if (!inputEl) return null;
+  if (pool.length === 0) {
+    inputEl.value =
+      'Ethereal spaceambient electronic music, shimmering aurora borealis and airglow seen from 650km polar orbit, crystalline synth bells, deep sub-bass drone, peaceful futuristic mood, 78 BPM, instrumental';
+    return null;
+  }
+  const currentVal = inputEl.value.trim();
+  const candidates = pool.filter((p) => p.input !== currentVal);
+  const chosen = (candidates.length > 0 ? candidates : pool)[
+    Math.floor(Math.random() * (candidates.length > 0 ? candidates.length : pool.length))
+  ];
+  inputEl.value = chosen.input;
+  return chosen;
+}
+
+document.getElementById('lyria-preset-random')?.addEventListener('click', () => {
+  rollRandomPromptIntoTextarea();
+});
+
+document.getElementById('lyria-random-gen-btn')?.addEventListener('click', () => {
+  const chosen = rollRandomPromptIntoTextarea();
+  void requestLyriaMusicGeneration({
+    randomPrompt: true,
+    promptId: chosen?.id,
+    titleKo: chosen?.titleKo,
+    titleEn: chosen?.titleEn,
+    input: chosen?.input,
+  });
 });
 
 document.getElementById('lyria-preset-ambient')?.addEventListener('click', () => {
@@ -2197,7 +2523,7 @@ async function applyLyriaTrackToBgm(audioSourceUrl) {
   const targetSrc =
     audioSourceUrl || gameState.lyriaAudioDataUrl || gameState.lyriaAudioUrl || '/audio/lyria-bgm-latest.mp3';
   bgmAudio.src = targetSrc;
-  bgmAudio.loop = true;
+  bgmAudio.loop = !gameState.bgmPlaylistMode;
   bgmAudio.volume = gameState.bgmDucked ? 0.08 : 0.42;
   try {
     await bgmAudio.play();
@@ -2225,6 +2551,9 @@ async function requestLyriaMusicGeneration(customPayload = null) {
 
   const model = customPayload?.model || modelSelect?.value || 'lyria-3-clip-preview';
   const input = customPayload?.input || promptInput?.value || '';
+  const excludePrompts = (gameState.lyriaPlaylist || [])
+    .map((t) => t.promptId || t.input)
+    .filter(Boolean);
 
   gameState.lyriaGenerating = true;
   updateHudTranslations();
@@ -2237,7 +2566,15 @@ async function requestLyriaMusicGeneration(customPayload = null) {
     const res = await fetch('/api/lyria/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model, input }),
+      body: JSON.stringify({
+        model,
+        input,
+        randomPrompt: Boolean(customPayload?.randomPrompt),
+        excludePrompts,
+        promptId: customPayload?.promptId,
+        titleKo: customPayload?.titleKo,
+        titleEn: customPayload?.titleEn,
+      }),
     });
     const data = await res.json();
     if (!res.ok || data.error) {
@@ -2253,6 +2590,29 @@ async function requestLyriaMusicGeneration(customPayload = null) {
     gameState.lyriaAudioUrl = data.audioUrl || '/audio/lyria-bgm-latest.mp3';
     gameState.lyriaLyricsText = data.text || '<instrumental>';
 
+    if (Array.isArray(data.playlist) && data.playlist.length > 0) {
+      gameState.lyriaPlaylist = data.playlist;
+      gameState.lyriaCurrentTrackIndex = data.playlist.length - 1;
+    } else {
+      gameState.lyriaPlaylist.push({
+        trackId: data.interactionId,
+        promptId: data.promptId || 'custom',
+        titleKo: data.titleKo || '사용자 생성 우주 트랙',
+        titleEn: data.titleEn || 'Custom Orbital Track',
+        model: gameState.lyriaModel,
+        input: data.input || input,
+        mimeType,
+        text: gameState.lyriaLyricsText,
+        audioUrl: gameState.lyriaAudioUrl,
+        audioDataUrl,
+        byteLength: data.byteLength,
+      });
+      gameState.lyriaCurrentTrackIndex = gameState.lyriaPlaylist.length - 1;
+    }
+
+    if (promptInput && data.input) {
+      promptInput.value = data.input;
+    }
     if (playerEl && audioDataUrl) {
       playerEl.src = audioDataUrl;
     }
@@ -2264,7 +2624,9 @@ async function requestLyriaMusicGeneration(customPayload = null) {
       lyricsEl.textContent = gameState.lyriaLyricsText;
     }
     if (badgeEl) {
-      badgeEl.textContent = `${gameState.lyriaModel} · ${mimeType}`;
+      badgeEl.textContent = `#${gameState.lyriaCurrentTrackIndex + 1} ${
+        gameState.lang === 'en' ? data.titleEn || gameState.lyriaModel : data.titleKo || gameState.lyriaModel
+      } · ${mimeType}`;
     }
     if (mimeInfoEl && data.byteLength) {
       mimeInfoEl.textContent = `${(data.byteLength / 1024).toFixed(1)} KB MP3`;
@@ -2465,7 +2827,7 @@ document.getElementById('preview-gen-btn').addEventListener('click', () => {
   void requestDesignPreview();
 });
 
-// Confirm Design -> Automatically closes Design Drawer and moves to Stage 3 (Generate)
+// Confirm Design -> Automatically closes Design Drawer and moves to Stage 2 (Generate)
 async function confirmCurrentDesign() {
   await ensureBgmPlaying();
   hideAlert();
@@ -2484,12 +2846,43 @@ async function confirmCurrentDesign() {
   gameState.designDrawerOpen = false;
   appendDialogueMessage('argon', I18N[gameState.lang].argon.stageHints.generate);
   updateHudTranslations();
+  void syncMissionTelemetry();
   return data;
 }
 
 document.getElementById('confirm-design-btn').addEventListener('click', () => {
   void confirmCurrentDesign();
 });
+
+// Reuse Existing 3D Reflector on Replay (Immediate mount without waiting for AI generation)
+async function reuseExistingReflector() {
+  if (!gameState.loadedReflectorObject) return;
+  await ensureBgmPlaying();
+  hideAlert();
+  await fetch('/api/design/confirm', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      designVersion:
+        gameState.activeReflectorMeta?.approvedDesignVersion || gameState.activeDesignVersion,
+    }),
+  });
+  gameState.designConfirmed = true;
+  gameState.approvedDesignVersion =
+    gameState.activeReflectorMeta?.approvedDesignVersion || gameState.activeDesignVersion;
+  gameState.designDrawerOpen = false;
+  mountActiveReflectorOnPedestal();
+  triggerStoryLine('mounted');
+  updateHudTranslations();
+  void syncMissionTelemetry();
+}
+
+const reuseReflectorBtn = document.getElementById('reuse-reflector-btn');
+if (reuseReflectorBtn) {
+  reuseReflectorBtn.addEventListener('click', () => {
+    void reuseExistingReflector();
+  });
+}
 
 // Cancel Design Confirmation / Re-open Design Stage
 async function reopenDesignStage() {
@@ -2499,13 +2892,71 @@ async function reopenDesignStage() {
   gameState.approvedDesignVersion = null;
   gameState.reflectorMounted = false;
   gameState.receiverAligned = false;
+  gameState.passStarted = false;
+  gameState.passActiveMode = false;
+  gameState.inPassWindow = false;
+  gameState.passMissed = false;
+  gameState.txProgress = 0;
+  gameState.txCompleted = false;
+  gameState.groundAckReceived = false;
+  gameState.returningInProgress = false;
+  gameState.returnedToBase = false;
   gameState.commsRestored = false;
   gameState.doorOpened = false;
+  gameState.doorOpenProgress = 0;
+  leftDoorPanel.position.x = -0.96;
+  rightDoorPanel.position.x = 0.96;
   gameState.reviewingAlignAfterComplete = false;
   gameState.designDrawerOpen = true;
   animateCameraToPreset('overview', 0.6);
   updateOpticalPuzzle();
   updateHudTranslations();
+  void syncMissionTelemetry();
+}
+
+// Reset Mission for Replay ("🔁 임무 다시 시작") while optionally keeping existing 3D reflector
+async function resetMissionFlow(keepReflector = true) {
+  hideAlert();
+  await fetch('/api/mission/reset', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ keepReflector }),
+  });
+  gameState.designConfirmed = false;
+  gameState.approvedDesignVersion = null;
+  gameState.reflectorMounted = false;
+  gameState.receiverAligned = false;
+  gameState.hintActive = false;
+  gameState.passStarted = false;
+  gameState.passActiveMode = false;
+  gameState.inPassWindow = false;
+  gameState.passMissed = false;
+  gameState.txProgress = 0;
+  gameState.txCompleted = false;
+  gameState.groundAckReceived = false;
+  gameState.returningInProgress = false;
+  gameState.returnedToBase = false;
+  gameState.commsRestored = false;
+  gameState.doorOpened = false;
+  gameState.doorOpenProgress = 0;
+  leftDoorPanel.position.x = -0.96;
+  rightDoorPanel.position.x = 0.96;
+  gameState.mountedYawRad = -0.35;
+  gameState.mountedPitchRad = -0.2;
+  gameState.reviewingAlignAfterComplete = false;
+  gameState.designDrawerOpen = false;
+  gameState.triggeredStoryKeys.clear();
+  if (reflectorMountPivot.children.length > 0 && gameState.loadedReflectorObject) {
+    reflectorMountPivot.remove(gameState.loadedReflectorObject);
+  }
+  animateCameraToPreset('overview', 0.65);
+  updateOpticalPuzzle();
+  updateHudTranslations();
+  triggerStoryLine('briefing1');
+  setTimeout(() => {
+    if (!gameState.reflectorMounted) triggerStoryLine('briefing2');
+  }, 2400);
+  void syncMissionTelemetry();
 }
 
 document.getElementById('cancel-design-btn').addEventListener('click', () => {
@@ -2517,6 +2968,12 @@ document.getElementById('redesign-from-align-btn').addEventListener('click', () 
 document.getElementById('complete-new-design-btn').addEventListener('click', () => {
   void reopenDesignStage();
 });
+const restartMissionBtn = document.getElementById('restart-mission-btn');
+if (restartMissionBtn) {
+  restartMissionBtn.addEventListener('click', () => {
+    void resetMissionFlow(true);
+  });
+}
 document.getElementById('complete-adjust-btn').addEventListener('click', () => {
   gameState.reviewingAlignAfterComplete = true;
   animateCameraToPreset('alignFocus', 0.55);
@@ -2558,6 +3015,7 @@ async function generateActual3DReflector(customOptions = {}) {
     btn.disabled = false;
     appendDialogueMessage('argon', I18N[gameState.lang].argon.stageHints.mount);
     updateHudTranslations();
+    void syncMissionTelemetry();
     return data;
   } catch (err) {
     btn.disabled = !gameState.designConfirmed;
@@ -2572,7 +3030,8 @@ document.getElementById('generate-3d-btn').addEventListener('click', () => {
 
 document.getElementById('equip-mount-btn').addEventListener('click', () => {
   mountActiveReflectorOnPedestal();
-  appendDialogueMessage('argon', I18N[gameState.lang].argon.stageHints.align);
+  triggerStoryLine('mounted');
+  void syncMissionTelemetry();
 });
 
 // Reflector Angle Controls & Smooth Sliders
@@ -2613,40 +3072,145 @@ if (pitchSliderEl) {
   });
 }
 
+// Directional Hint & Fine Assist (Guides direction and steps closer WITHOUT auto-completing the puzzle)
 document.getElementById('align-assist-btn').addEventListener('click', () => {
-  gameState.mountedYawRad = TARGET_YAW_RAD;
-  gameState.mountedPitchRad = TARGET_PITCH_RAD;
+  gameState.hintActive = true;
+  const dYaw = TARGET_YAW_RAD - gameState.mountedYawRad;
+  const dPitch = TARGET_PITCH_RAD - gameState.mountedPitchRad;
+  const distRad = Math.hypot(dYaw, dPitch);
+  // Minimum residual angle ~0.048 rad (~5.4 deg optical beam error, outside the 2.8 deg lock threshold)
+  const minStopRad = 0.048;
+  if (distRad > minStopRad) {
+    const newDistRad = Math.max(minStopRad, distRad * 0.52);
+    const ratio = (distRad - newDistRad) / distRad;
+    gameState.mountedYawRad = Number((gameState.mountedYawRad + dYaw * ratio).toFixed(4));
+    gameState.mountedPitchRad = Number((gameState.mountedPitchRad + dPitch * ratio).toFixed(4));
+  }
   updateOpticalPuzzle();
-  appendDialogueMessage('argon', I18N[gameState.lang].argon.stageHints.completed);
+  const hintMsg = getAlignmentDirectionHint();
+  appendDialogueMessage('argon', hintMsg);
 });
 
-// Guided Auto-Play Mode (Smoothly demonstrates Design -> Confirm -> 3D Generate -> Mount -> Beam Alignment)
+// Start or Advance to Ground Station Pass Window ("📡 교신 구간 시작" / "⏭ 다음 교신 구간으로 이동")
+function startOrAdvanceToPassWindow() {
+  void ensureBgmPlaying();
+  gameState.passStarted = true;
+  gameState.passActiveMode = true;
+  gameState.passMissed = false;
+  // Position Suncatcher 3.5 seconds before entering the pass window [1.05, 1.95]
+  const approachSeconds = 3.5;
+  orbitSim.orbitAngleRad = normalizePosAngle(
+    PASS_CONFIG.passStartRad - PASS_CONFIG.passOrbitRateRadPerSec * approachSeconds
+  );
+  gameState.inPassWindow = false;
+  gameState.passCountdownSec = approachSeconds;
+  gameState.passRemainingSec =
+    (PASS_CONFIG.passEndRad - PASS_CONFIG.passStartRad) / PASS_CONFIG.passOrbitRateRadPerSec;
+
+  triggerStoryLine('passApproaching');
+  updateInSceneMonitorScreen(player.hoverTarget === 'monitor');
+  if (gameState.orbitMonitorOpen) {
+    updateOrbitMonitorHudLabels();
+    renderOrbitMonitorFrame(performance.now() * 0.001);
+  }
+  updateHudTranslations();
+  void syncMissionTelemetry();
+}
+
+const startPassBtn = document.getElementById('start-pass-btn');
+if (startPassBtn) {
+  startPassBtn.addEventListener('click', () => {
+    startOrAdvanceToPassWindow();
+  });
+}
+
+const nextPassBtn = document.getElementById('next-pass-btn');
+if (nextPassBtn) {
+  nextPassBtn.addEventListener('click', () => {
+    startOrAdvanceToPassWindow();
+  });
+}
+
+// Return Inside Base via Open Airlock ("🚪 에어록으로 기지 귀환" or 3D Airlock interaction / walk-through)
+function startReturnToBase() {
+  if (!gameState.groundAckReceived || !gameState.doorOpened) {
+    const lockedMsg =
+      gameState.lang === 'en'
+        ? 'Airlock sealed: Transmit 100% of the rescue request and await Ground Control approval.'
+        : '에어록 잠김: 구조 요청을 100% 송신하고 지상 관제의 귀환 승인을 받아야 열립니다.';
+    appendDialogueMessage('argon', lockedMsg);
+    return false;
+  }
+  if (gameState.returnedToBase || gameState.returningInProgress) return true;
+
+  gameState.returningInProgress = true;
+  gameState.reviewingAlignAfterComplete = false;
+  if (gameState.orbitMonitorOpen) {
+    closeOrbitMonitor();
+  }
+  updateHudTranslations();
+
+  // Smoothly walk player camera through the open airlock archway into the pressurized station interior
+  player.camTween = {
+    startPos: player.position.clone(),
+    endPos: new THREE.Vector3(2.15, WORK_ZONE.eyeHeight, -6.38),
+    startYaw: player.yaw,
+    endYaw: 0.0,
+    startPitch: player.pitch,
+    endPitch: -0.03,
+    elapsed: 0,
+    duration: 1.0,
+  };
+
+  setTimeout(() => {
+    gameState.returningInProgress = false;
+    gameState.returnedToBase = true;
+    triggerStoryLine('returnedComplete');
+    updateHudTranslations();
+    void syncMissionTelemetry();
+  }, 1020);
+  return true;
+}
+
+const returnBaseBtn = document.getElementById('return-base-btn');
+if (returnBaseBtn) {
+  returnBaseBtn.addEventListener('click', () => {
+    startReturnToBase();
+  });
+}
+
+const lblAirlockEl = document.getElementById('label-airlock');
+if (lblAirlockEl) {
+  lblAirlockEl.addEventListener('click', (e) => {
+    e.stopPropagation();
+    startReturnToBase();
+  });
+}
+
+// Guided Demo Mode inside Help Modal (Demonstrates the full Final Transmission story flow)
 async function runGuidedAutoPlay() {
   if (gameState.autoPlayActive) return;
   gameState.autoPlayActive = true;
+  document.getElementById('guide-modal')?.classList.remove('open');
   updateHudTranslations();
   await ensureBgmPlaying();
 
   try {
-    // 1. Confirm design if not confirmed
     if (!gameState.designConfirmed) {
       await confirmCurrentDesign();
-      await new Promise((r) => setTimeout(r, 450));
+      await new Promise((r) => setTimeout(r, 400));
     }
-    // 2. Generate 3D reflector (using verified fast artifact so guided demo is smooth and instant)
     if (!gameState.loadedReflectorObject) {
       await generateActual3DReflector({ fastMode: true });
-      await new Promise((r) => setTimeout(r, 450));
+      await new Promise((r) => setTimeout(r, 400));
     }
-    // 3. Mount reflector on pedestal
     if (!gameState.reflectorMounted) {
       mountActiveReflectorOnPedestal();
-      await new Promise((r) => setTimeout(r, 550));
+      await new Promise((r) => setTimeout(r, 450));
     }
-    // 4. Smoothly animate reflector angle from unaligned to target lock
-    const startYaw = -0.36;
-    const startPitch = -0.22;
-    const steps = 28;
+    const startYaw = gameState.mountedYawRad;
+    const startPitch = gameState.mountedPitchRad;
+    const steps = 22;
     for (let i = 0; i <= steps; i++) {
       const t = i / steps;
       const ease = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
@@ -2657,28 +3221,38 @@ async function runGuidedAutoPlay() {
         (startPitch + (TARGET_PITCH_RAD - startPitch) * ease).toFixed(4)
       );
       updateOpticalPuzzle();
-      await new Promise((r) => setTimeout(r, 40));
+      await new Promise((r) => setTimeout(r, 35));
     }
-    appendDialogueMessage('argon', I18N[gameState.lang].argon.stageHints.completed);
+    if (!gameState.txCompleted) {
+      startOrAdvanceToPassWindow();
+      orbitSim.orbitAngleRad = PASS_CONFIG.passStartRad + 0.04;
+    }
   } finally {
     gameState.autoPlayActive = false;
     updateHudTranslations();
   }
 }
 
-document.getElementById('autoplay-btn').addEventListener('click', () => {
-  void runGuidedAutoPlay();
-});
+const autoPlayBtn = document.getElementById('autoplay-btn');
+if (autoPlayBtn) {
+  autoPlayBtn.addEventListener('click', () => {
+    void runGuidedAutoPlay();
+  });
+}
 
 // ============================================================================
-// Singleton 3D Orbit Monitor Modal View (Inspired by satellitemap.space track view)
-// Restricted to: 3D Earth, 1 Orbit Track, 1 Moving Marker, Direction + Label, Meta Info, Close Button
+// Singleton 3D Orbit & Solar System Monitor Modal View
+// Supports:
+//  - 'earth' mode: 3D Earth + Suncatcher 650km Orbit + 3D Moon & Lunar Orbit + 3D Sun + Live Solar System PiP Mini-Map
+//  - 'solar' mode: Interactive 3D Solar System Orrery (Sun + 8 Planets + Earth/Moon/Suncatcher + Saturn Rings + Asteroid Belt)
 // ============================================================================
 const orbitMonitorView = {
   initialized: false,
   renderer: null,
   scene: null,
   camera: null,
+  pipCamera: null,
+  earthSystemGroup: null,
   earthSpinGroup: null,
   cloudMesh: null,
   orbitPlaneGroup: null,
@@ -2686,10 +3260,35 @@ const orbitMonitorView = {
   markerPulseHalo: null,
   directionArrow: null,
   nadirLineGeom: null,
+  moonOrbitPlaneGroup: null,
+  moonGroup: null,
+  moonMesh: null,
+  monitorSunGroup: null,
+  monitorSunMesh: null,
+  monitorSunCorona: null,
+  solarSystemGroup: null,
+  solarSunMesh: null,
+  solarSunCorona: null,
+  asteroidBelt: null,
+  planetEntries: [],
+  solarEarthGroup: null,
+  solarMoonPivot: null,
+  solarSuncatcherPivot: null,
+  solarSuncatcherMarker: null,
+  planetLabelEls: {},
   orbitRadius: 2.16,
+  moonOrbitRadius: 3.32,
   earthRadius: 1.56,
   markerWorldPos: new THREE.Vector3(),
   markerScreenPos: { x: 0, y: 0 },
+  solarCam: {
+    azimuth: 0.0,
+    elevation: 0.56,
+    distance: 9.8,
+    dragging: false,
+    lastX: 0,
+    lastY: 0,
+  },
 };
 
 function initOrbitMonitor3DView() {
@@ -2710,16 +3309,21 @@ function initOrbitMonitor3DView() {
   const omScene = new THREE.Scene();
   omScene.background = new THREE.Color(0x020712);
 
-  // Camera framed so entire 3D Earth, full 3D orbit ring, and current marker are 100% visible
-  const omCamera = new THREE.PerspectiveCamera(42, 16 / 10, 0.1, 100);
-  omCamera.position.set(0, 1.55, 5.95);
+  // Main Camera
+  const omCamera = new THREE.PerspectiveCamera(42, 16 / 10, 0.1, 120);
+  omCamera.position.set(0, 1.65, 6.25);
   omCamera.lookAt(0, 0, 0);
 
+  // PiP Camera for live Solar System Mini-Map in 'earth' mode
+  const pipCamera = new THREE.PerspectiveCamera(40, 190 / 122, 0.1, 120);
+  pipCamera.position.set(0, 5.8, 8.6);
+  pipCamera.lookAt(0, -0.2, 0);
+
   // Background stars inside the Orbit Monitor
-  const starCount = 450;
+  const starCount = 520;
   const starPos = new Float32Array(starCount * 3);
   for (let i = 0; i < starCount; i++) {
-    const r = 18 + (i % 17) * 1.4;
+    const r = 22 + (i % 19) * 1.5;
     const theta = i * 2.39996;
     const phi = Math.acos(1 - (2 * (i + 0.5)) / starCount);
     starPos[i * 3] = r * Math.sin(phi) * Math.cos(theta);
@@ -2732,20 +3336,27 @@ function initOrbitMonitor3DView() {
     new THREE.Points(starGeom, new THREE.PointsMaterial({ color: 0xbae6fd, size: 0.08 }))
   );
 
-  // Lighting for 3D Globe
-  omScene.add(new THREE.AmbientLight(0x6488b8, 1.15));
-  const omSun = new THREE.DirectionalLight(0xfff4dc, 2.8);
-  omSun.position.set(8, 4, 6);
+  // Shared Lighting
+  omScene.add(new THREE.AmbientLight(0x6488b8, 1.2));
+  const omSun = new THREE.DirectionalLight(0xfff4dc, 2.75);
+  omSun.position.set(-8, 4.5, 6);
   omScene.add(omSun);
-  const omRim = new THREE.DirectionalLight(0x38bdf8, 1.3);
-  omRim.position.set(-7, -3, -5);
+  const omRim = new THREE.DirectionalLight(0x38bdf8, 1.35);
+  omRim.position.set(7, -3, -5);
   omScene.add(omRim);
 
-  // 1. Simple 3D Earth (Spins on its polar axis via orbitSim.earthSpinRad)
+  // ==========================================================================
+  // GROUP A: 3D Earth 650km Orbit + 3D Moon + 3D Sun Backdrop ('earth' mode)
+  // ==========================================================================
+  const earthSystemGroup = new THREE.Group();
+  earthSystemGroup.name = 'OrbitMonitorEarthSystemGroup';
+  omScene.add(earthSystemGroup);
+
+  // 1. 3D Earth (Spins on its polar axis via orbitSim.earthSpinRad)
   const earthSpinGroup = new THREE.Group();
   earthSpinGroup.name = 'OrbitMonitorEarthSpinGroup';
   earthSpinGroup.rotation.z = 0.22;
-  omScene.add(earthSpinGroup);
+  earthSystemGroup.add(earthSpinGroup);
 
   const globeMesh = new THREE.Mesh(
     new THREE.SphereGeometry(orbitMonitorView.earthRadius, 56, 56),
@@ -2779,7 +3390,6 @@ function initOrbitMonitor3DView() {
   );
   earthSpinGroup.add(globeCloudMesh);
 
-  // Subtle Atmosphere Halo around Monitor Globe
   const atmoHalo = new THREE.Mesh(
     new THREE.SphereGeometry(orbitMonitorView.earthRadius + 0.09, 48, 48),
     new THREE.MeshBasicMaterial({
@@ -2791,14 +3401,14 @@ function initOrbitMonitor3DView() {
       depthWrite: false,
     })
   );
-  omScene.add(atmoHalo);
+  earthSystemGroup.add(atmoHalo);
 
-  // 2. Single Inclined 3D Orbital Track Line (Tilted so the entire loop & marker are never occluded)
+  // 2. Suncatcher 650km Inclined 3D Orbital Track Line
   const orbitPlaneGroup = new THREE.Group();
   orbitPlaneGroup.name = 'SuncatcherSingleOrbitPlane';
   orbitPlaneGroup.rotation.x = 0.54;
   orbitPlaneGroup.rotation.z = -0.34;
-  omScene.add(orbitPlaneGroup);
+  earthSystemGroup.add(orbitPlaneGroup);
 
   const R = orbitMonitorView.orbitRadius;
   const curvePts = [];
@@ -2818,7 +3428,6 @@ function initOrbitMonitor3DView() {
   );
   orbitPlaneGroup.add(orbitTrackTube);
 
-  // Subtle Ground-Track Nadir Line connecting Current Station Position to Earth Surface
   const nadirGeom = new THREE.BufferGeometry().setFromPoints([
     new THREE.Vector3(0, 0, 0),
     new THREE.Vector3(R, 0, 0),
@@ -2833,7 +3442,7 @@ function initOrbitMonitor3DView() {
   );
   orbitPlaneGroup.add(nadirLine);
 
-  // 3. Single Moving Current-Position Marker + Forward Velocity Direction Cone
+  // 3. Moving Suncatcher Current-Position Marker + Forward Velocity Cone
   const markerGroup = new THREE.Group();
   markerGroup.name = 'SuncatcherOrbitMarker';
   orbitPlaneGroup.add(markerGroup);
@@ -2854,19 +3463,396 @@ function initOrbitMonitor3DView() {
   );
   markerGroup.add(markerCore, markerPulseHalo);
 
-  // Forward travel direction arrow cone placed just ahead of the marker along the tangent
   const arrowGeom = new THREE.ConeGeometry(0.075, 0.24, 16);
-  arrowGeom.rotateX(Math.PI / 2); // Point cone tip along +Z for lookAt
+  arrowGeom.rotateX(Math.PI / 2);
   const directionArrow = new THREE.Mesh(
     arrowGeom,
     new THREE.MeshBasicMaterial({ color: 0x38bdf8 })
   );
   orbitPlaneGroup.add(directionArrow);
 
+  // 4. 3D Moon (🌙 달) & Inclined Lunar Orbit Track around Earth
+  const moonOrbitPlaneGroup = new THREE.Group();
+  moonOrbitPlaneGroup.name = 'OrbitMonitorMoonPlane';
+  moonOrbitPlaneGroup.rotation.x = 0.24;
+  moonOrbitPlaneGroup.rotation.z = 0.15;
+  earthSystemGroup.add(moonOrbitPlaneGroup);
+
+  const moonR = orbitMonitorView.moonOrbitRadius;
+  const moonCurvePts = [];
+  for (let i = 0; i <= 128; i++) {
+    const a = (i / 128) * Math.PI * 2;
+    moonCurvePts.push(new THREE.Vector3(Math.cos(a) * moonR, 0, Math.sin(a) * moonR));
+  }
+  const moonOrbitCurve = new THREE.CatmullRomCurve3(moonCurvePts, true);
+  const moonOrbitTube = new THREE.Mesh(
+    new THREE.TubeGeometry(moonOrbitCurve, 128, 0.014, 8, true),
+    new THREE.MeshBasicMaterial({
+      color: 0xcbd5e1,
+      transparent: true,
+      opacity: 0.48,
+    })
+  );
+  moonOrbitPlaneGroup.add(moonOrbitTube);
+
+  const moonGroup = new THREE.Group();
+  moonGroup.name = 'OrbitMonitorMoonGroup';
+  moonOrbitPlaneGroup.add(moonGroup);
+
+  const moonMesh = new THREE.Mesh(
+    new THREE.SphereGeometry(0.27, 36, 36),
+    new THREE.MeshStandardMaterial({
+      map: celestialSky.moonTex,
+      roughness: 0.85,
+      metalness: 0.05,
+      emissive: new THREE.Color(0x1e293b),
+      emissiveIntensity: 0.35,
+    })
+  );
+  const moonHalo = new THREE.Mesh(
+    new THREE.SphereGeometry(0.36, 24, 24),
+    new THREE.MeshBasicMaterial({
+      color: 0xe2e8f0,
+      transparent: true,
+      opacity: 0.22,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    })
+  );
+  moonGroup.add(moonMesh, moonHalo);
+
+  // 5. 3D Sun (☀️ 태양) in the Earth Monitor Backdrop
+  const monitorSunGroup = new THREE.Group();
+  monitorSunGroup.name = 'OrbitMonitorSunBackdrop';
+  monitorSunGroup.position.set(-4.35, 2.15, -4.2);
+  earthSystemGroup.add(monitorSunGroup);
+
+  const monitorSunMesh = new THREE.Mesh(
+    new THREE.SphereGeometry(0.56, 36, 36),
+    new THREE.MeshBasicMaterial({ map: celestialSky.sunTex })
+  );
+  const monitorSunCorona = new THREE.Mesh(
+    new THREE.SphereGeometry(0.82, 32, 32),
+    new THREE.MeshBasicMaterial({
+      color: 0xf59e0b,
+      transparent: true,
+      opacity: 0.36,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    })
+  );
+  const monitorSunSprite = new THREE.Sprite(
+    new THREE.SpriteMaterial({
+      map: celestialSky.coronaTex,
+      color: 0xffedd5,
+      transparent: true,
+      opacity: 0.85,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    })
+  );
+  monitorSunSprite.scale.set(2.7, 2.7, 1);
+  monitorSunGroup.add(monitorSunMesh, monitorSunCorona, monitorSunSprite);
+
+  // ==========================================================================
+  // GROUP B: Full 3D Solar System Orrery ('solar' mode + Live PiP Mini-Map)
+  // ==========================================================================
+  const solarSystemGroup = new THREE.Group();
+  solarSystemGroup.name = 'OrbitMonitorSolarSystemOrrery';
+  solarSystemGroup.visible = false;
+  omScene.add(solarSystemGroup);
+
+  // Central 3D Sun of the Solar System
+  const solarSunGroup = new THREE.Group();
+  solarSunGroup.name = 'SolarSystemCentralSun';
+  solarSystemGroup.add(solarSunGroup);
+
+  const solarSunMesh = new THREE.Mesh(
+    new THREE.SphereGeometry(0.62, 44, 44),
+    new THREE.MeshBasicMaterial({ map: celestialSky.sunTex })
+  );
+  const solarSunCorona = new THREE.Mesh(
+    new THREE.SphereGeometry(0.86, 32, 32),
+    new THREE.MeshBasicMaterial({
+      color: 0xfbbf24,
+      transparent: true,
+      opacity: 0.38,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    })
+  );
+  const solarSunSprite = new THREE.Sprite(
+    new THREE.SpriteMaterial({
+      map: celestialSky.coronaTex,
+      color: 0xfffbeb,
+      transparent: true,
+      opacity: 0.9,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    })
+  );
+  solarSunSprite.scale.set(3.2, 3.2, 1);
+  const solarPointLight = new THREE.PointLight(0xfff7ed, 3.2, 35, 0.5);
+  solarSunGroup.add(solarSunMesh, solarSunCorona, solarSunSprite, solarPointLight);
+
+  // Asteroid Belt between Mars (r=2.42) and Jupiter (r=3.15)
+  const astCount = 260;
+  const astPos = new Float32Array(astCount * 3);
+  for (let i = 0; i < astCount; i++) {
+    const a = (i / astCount) * Math.PI * 2 + (i % 7) * 0.13;
+    const rad = 2.74 + ((i * 19) % 13) * 0.011;
+    const yOff = (((i * 11) % 9) - 4) * 0.018;
+    astPos[i * 3] = Math.cos(a) * rad;
+    astPos[i * 3 + 1] = yOff;
+    astPos[i * 3 + 2] = Math.sin(a) * rad;
+  }
+  const astGeom = new THREE.BufferGeometry();
+  astGeom.setAttribute('position', new THREE.BufferAttribute(astPos, 3));
+  const asteroidBelt = new THREE.Points(
+    astGeom,
+    new THREE.PointsMaterial({
+      color: 0x94a3b8,
+      size: 0.045,
+      transparent: true,
+      opacity: 0.72,
+    })
+  );
+  solarSystemGroup.add(asteroidBelt);
+
+  // Build All 8 Planets + Orbital Rings + Subsystems (Earth+Moon+Suncatcher, Saturn Rings, Uranus Ring)
+  const planetEntries = [];
+  for (const p of orbitSim.planets) {
+    const orbitRingPts = [];
+    for (let i = 0; i <= 128; i++) {
+      const a = (i / 128) * Math.PI * 2;
+      orbitRingPts.push(
+        new THREE.Vector3(Math.cos(a) * p.orbitRadius, 0, Math.sin(a) * p.orbitRadius)
+      );
+    }
+    const ringCurve = new THREE.CatmullRomCurve3(orbitRingPts, true);
+    const isEarth = p.key === 'earth';
+    const ringTube = new THREE.Mesh(
+      new THREE.TubeGeometry(ringCurve, 120, isEarth ? 0.018 : 0.011, 8, true),
+      new THREE.MeshBasicMaterial({
+        color: isEarth ? 0x38bdf8 : p.color,
+        transparent: true,
+        opacity: isEarth ? 0.78 : 0.36,
+      })
+    );
+    solarSystemGroup.add(ringTube);
+
+    const pGroup = new THREE.Group();
+    pGroup.name = `SolarPlanet_${p.key}`;
+    solarSystemGroup.add(pGroup);
+
+    let pMat;
+    if (p.key === 'earth') {
+      pMat = new THREE.MeshStandardMaterial({
+        map: earthLayers.surfTex,
+        roughness: 0.5,
+        metalness: 0.1,
+        emissive: new THREE.Color(0x0ea5e9),
+        emissiveIntensity: 0.22,
+      });
+    } else if (p.key === 'jupiter') {
+      pMat = new THREE.MeshStandardMaterial({
+        map: celestialSky.jupiterTex,
+        roughness: 0.6,
+        emissive: new THREE.Color(0x78350f),
+        emissiveIntensity: 0.18,
+      });
+    } else if (p.key === 'saturn') {
+      pMat = new THREE.MeshStandardMaterial({
+        map: celestialSky.saturnTex,
+        roughness: 0.6,
+        emissive: new THREE.Color(0x713f12),
+        emissiveIntensity: 0.18,
+      });
+    } else {
+      pMat = new THREE.MeshStandardMaterial({
+        color: p.color,
+        roughness: 0.55,
+        metalness: 0.12,
+        emissive: new THREE.Color(p.color),
+        emissiveIntensity: 0.25,
+      });
+    }
+
+    const pMesh = new THREE.Mesh(new THREE.SphereGeometry(p.size, 28, 28), pMat);
+    const pHalo = new THREE.Mesh(
+      new THREE.SphereGeometry(p.size * 1.32, 20, 20),
+      new THREE.MeshBasicMaterial({
+        color: p.color,
+        transparent: true,
+        opacity: 0.24,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      })
+    );
+    pGroup.add(pMesh, pHalo);
+
+    if (p.hasRings || p.hasThinRing || p.hasRing) {
+      const ringInner = p.size * 1.38;
+      const ringOuter = p.size * (p.key === 'saturn' ? 2.45 : 1.85);
+      const pRing = new THREE.Mesh(
+        new THREE.RingGeometry(ringInner, ringOuter, 48),
+        new THREE.MeshBasicMaterial({
+          map: p.key === 'saturn' ? celestialSky.saturnRingTex : null,
+          color: p.key === 'saturn' ? 0xfde68a : 0x7dd3fc,
+          side: THREE.DoubleSide,
+          transparent: true,
+          opacity: p.key === 'saturn' ? 0.85 : 0.45,
+        })
+      );
+      pRing.rotation.x = p.key === 'saturn' ? Math.PI * 0.42 : Math.PI * 0.15;
+      pRing.rotation.y = 0.25;
+      pGroup.add(pRing);
+    }
+
+    // Special subsystems on Earth inside the Solar System Orrery: Moon + Suncatcher 650km Orbit
+    if (isEarth) {
+      const miniMoonOrbitPts = [];
+      const miniMoonR = 0.34;
+      for (let i = 0; i <= 64; i++) {
+        const a = (i / 64) * Math.PI * 2;
+        miniMoonOrbitPts.push(
+          new THREE.Vector3(Math.cos(a) * miniMoonR, 0, Math.sin(a) * miniMoonR)
+        );
+      }
+      const miniMoonRing = new THREE.LineLoop(
+        new THREE.BufferGeometry().setFromPoints(miniMoonOrbitPts),
+        new THREE.LineBasicMaterial({ color: 0xe2e8f0, transparent: true, opacity: 0.65 })
+      );
+      miniMoonRing.rotation.x = 0.22;
+      pGroup.add(miniMoonRing);
+
+      const solarMoonPivot = new THREE.Group();
+      solarMoonPivot.rotation.x = 0.22;
+      const solarMoonMesh = new THREE.Mesh(
+        new THREE.SphereGeometry(0.055, 16, 16),
+        new THREE.MeshBasicMaterial({ map: celestialSky.moonTex })
+      );
+      solarMoonMesh.position.set(miniMoonR, 0, 0);
+      solarMoonPivot.add(solarMoonMesh);
+      pGroup.add(solarMoonPivot);
+
+      // Mini Suncatcher 650km orbit ring + golden marker around Earth in Solar System view
+      const miniScPts = [];
+      const miniScR = 0.21;
+      for (let i = 0; i <= 48; i++) {
+        const a = (i / 48) * Math.PI * 2;
+        miniScPts.push(new THREE.Vector3(Math.cos(a) * miniScR, 0, Math.sin(a) * miniScR));
+      }
+      const miniScRing = new THREE.LineLoop(
+        new THREE.BufferGeometry().setFromPoints(miniScPts),
+        new THREE.LineBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.9 })
+      );
+      miniScRing.rotation.x = 0.54;
+      miniScRing.rotation.z = -0.34;
+      pGroup.add(miniScRing);
+
+      const solarSuncatcherPivot = new THREE.Group();
+      solarSuncatcherPivot.rotation.x = 0.54;
+      solarSuncatcherPivot.rotation.z = -0.34;
+      const solarSuncatcherMarker = new THREE.Mesh(
+        new THREE.SphereGeometry(0.042, 12, 12),
+        new THREE.MeshBasicMaterial({ color: 0xfde047 })
+      );
+      solarSuncatcherMarker.position.set(miniScR, 0, 0);
+      solarSuncatcherPivot.add(solarSuncatcherMarker);
+      pGroup.add(solarSuncatcherPivot);
+
+      orbitMonitorView.solarEarthGroup = pGroup;
+      orbitMonitorView.solarMoonPivot = solarMoonPivot;
+      orbitMonitorView.solarSuncatcherPivot = solarSuncatcherPivot;
+      orbitMonitorView.solarSuncatcherMarker = solarSuncatcherMarker;
+    }
+
+    planetEntries.push({
+      data: p,
+      group: pGroup,
+      mesh: pMesh,
+    });
+  }
+
+  // Build floating 2D planet label DOM elements inside #orbit-planet-labels
+  const labelsContainer = document.getElementById('orbit-planet-labels');
+  if (labelsContainer) {
+    labelsContainer.innerHTML = '';
+    const allLabelKeys = [
+      'sun',
+      'mercury',
+      'venus',
+      'earth',
+      'moon',
+      'mars',
+      'jupiter',
+      'saturn',
+      'uranus',
+      'neptune',
+    ];
+    for (const key of allLabelKeys) {
+      const tag = document.createElement('div');
+      tag.className = `orbit-planet-tag${
+        key === 'sun' ? ' is-sun' : key === 'earth' ? ' is-earth' : key === 'moon' ? ' is-moon' : ''
+      }`;
+      tag.id = `orbit-planet-tag-${key}`;
+      labelsContainer.appendChild(tag);
+      orbitMonitorView.planetLabelEls[key] = tag;
+    }
+  }
+
+  // Interactive Orbit Camera Drag & Wheel Zoom inside #orbit-monitor-canvas
+  omCanvas.addEventListener('pointerdown', (e) => {
+    orbitMonitorView.solarCam.dragging = true;
+    orbitMonitorView.solarCam.lastX = e.clientX;
+    orbitMonitorView.solarCam.lastY = e.clientY;
+    try {
+      omCanvas.setPointerCapture(e.pointerId);
+    } catch {
+      // Ignore
+    }
+  });
+  omCanvas.addEventListener('pointermove', (e) => {
+    if (!orbitMonitorView.solarCam.dragging) return;
+    const dx = e.clientX - orbitMonitorView.solarCam.lastX;
+    const dy = e.clientY - orbitMonitorView.solarCam.lastY;
+    orbitMonitorView.solarCam.lastX = e.clientX;
+    orbitMonitorView.solarCam.lastY = e.clientY;
+    orbitMonitorView.solarCam.azimuth -= dx * 0.0055;
+    orbitMonitorView.solarCam.elevation = Math.max(
+      0.18,
+      Math.min(1.38, orbitMonitorView.solarCam.elevation + dy * 0.0045)
+    );
+  });
+  const stopOmDrag = (e) => {
+    orbitMonitorView.solarCam.dragging = false;
+    try {
+      if (e?.pointerId !== undefined) omCanvas.releasePointerCapture(e.pointerId);
+    } catch {
+      // Ignore
+    }
+  };
+  omCanvas.addEventListener('pointerup', stopOmDrag);
+  omCanvas.addEventListener('pointercancel', stopOmDrag);
+  omCanvas.addEventListener(
+    'wheel',
+    (e) => {
+      e.preventDefault();
+      orbitMonitorView.solarCam.distance = Math.max(
+        5.5,
+        Math.min(15.5, orbitMonitorView.solarCam.distance + (e.deltaY > 0 ? 0.55 : -0.55))
+      );
+    },
+    { passive: false }
+  );
+
   orbitMonitorView.initialized = true;
   orbitMonitorView.renderer = omRenderer;
   orbitMonitorView.scene = omScene;
   orbitMonitorView.camera = omCamera;
+  orbitMonitorView.pipCamera = pipCamera;
+  orbitMonitorView.earthSystemGroup = earthSystemGroup;
   orbitMonitorView.earthSpinGroup = earthSpinGroup;
   orbitMonitorView.cloudMesh = globeCloudMesh;
   orbitMonitorView.orbitPlaneGroup = orbitPlaneGroup;
@@ -2874,6 +3860,17 @@ function initOrbitMonitor3DView() {
   orbitMonitorView.markerPulseHalo = markerPulseHalo;
   orbitMonitorView.directionArrow = directionArrow;
   orbitMonitorView.nadirLineGeom = nadirGeom;
+  orbitMonitorView.moonOrbitPlaneGroup = moonOrbitPlaneGroup;
+  orbitMonitorView.moonGroup = moonGroup;
+  orbitMonitorView.moonMesh = moonMesh;
+  orbitMonitorView.monitorSunGroup = monitorSunGroup;
+  orbitMonitorView.monitorSunMesh = monitorSunMesh;
+  orbitMonitorView.monitorSunCorona = monitorSunCorona;
+  orbitMonitorView.solarSystemGroup = solarSystemGroup;
+  orbitMonitorView.solarSunMesh = solarSunMesh;
+  orbitMonitorView.solarSunCorona = solarSunCorona;
+  orbitMonitorView.asteroidBelt = asteroidBelt;
+  orbitMonitorView.planetEntries = planetEntries;
 }
 
 function resizeOrbitMonitorRenderer() {
@@ -2887,95 +3884,99 @@ function resizeOrbitMonitorRenderer() {
   orbitMonitorView.renderer.setSize(w, h, false);
 }
 
-function updateOrbitMonitorHudLabels() {
-  const isEn = gameState.lang === 'en';
-  const omMeta = document.getElementById('ui-orbit-modal-meta');
-  const omSpeedBtn = document.getElementById('orbit-speed-btn');
-  const omMarkerDir = document.getElementById('ui-orbit-marker-dir');
-
-  const latHemi = orbitSim.latDeg >= 0 ? 'N' : 'S';
-  const lonHemi = orbitSim.lonDeg >= 0 ? 'E' : 'W';
-  const coordStr = `${Math.abs(orbitSim.latDeg).toFixed(2)}°${latHemi}, ${Math.abs(orbitSim.lonDeg).toFixed(2)}°${lonHemi}`;
-  const speedText =
-    orbitSim.timeScale === 1
-      ? isEn
-        ? '1× Real-Time'
-        : '1× 실시간'
-      : isEn
-        ? `${orbitSim.timeScale}× Warp`
-        : `${orbitSim.timeScale}× 배속`;
-
-  if (omMeta) {
-    omMeta.textContent = isEn
-      ? `NORAD ${orbitSim.noradId} (${orbitSim.objectName}) · Alt ${orbitSim.altitudeKm}km · ${orbitSim.velocityKms} km/s · ${coordStr} · ${speedText}`
-      : `NORAD ${orbitSim.noradId} (${orbitSim.objectName}) · 고도 ${orbitSim.altitudeKm}km · ${orbitSim.velocityKms} km/s · ${coordStr} · ${speedText}`;
-  }
-  if (omSpeedBtn) {
-    omSpeedBtn.textContent = `⚡ ${speedText}`;
-  }
-  if (omMarkerDir) {
-    omMarkerDir.textContent = isEn
-      ? `Direction · ${orbitSim.velocityKms} km/s (${coordStr}) ➔`
-      : `진행 방향 · ${orbitSim.velocityKms} km/s (${coordStr}) ➔`;
-  }
-}
-
-// Advance Shared Orbital Simulation State & Synchronize Out-the-Window 3D Earth
+// Advance Shared Orbital & Solar System Simulation State & Synchronize Out-the-Window 3D Sky
 function stepOrbitSimulation(dt) {
   orbitSim.simTimeSec += dt * orbitSim.timeScale;
-  orbitSim.virtualTimestampMs += dt * 1000 * orbitSim.timeScale;
+  orbitSim.orbitAngleRad =
+    (orbitSim.orbitAngleRad + dt * orbitSim.orbitRateRadPerRealSec) % (Math.PI * 2);
+  orbitSim.earthSpinRad =
+    (orbitSim.earthSpinRad + dt * orbitSim.earthSpinRateRadPerRealSec) % (Math.PI * 2);
+  orbitSim.cloudDriftRad =
+    (orbitSim.cloudDriftRad + dt * orbitSim.earthSpinRateRadPerRealSec * 1.28) %
+    (Math.PI * 2);
+  orbitSim.moonOrbitAngleRad =
+    (orbitSim.moonOrbitAngleRad + dt * orbitSim.moonOrbitRateRadPerRealSec) %
+    (Math.PI * 2);
+  orbitSim.moonSpinRad = (orbitSim.moonSpinRad + dt * 0.025) % (Math.PI * 2);
+  orbitSim.sunSpinRad = (orbitSim.sunSpinRad + dt * 0.018) % (Math.PI * 2);
 
-  // Propagate real satellite orbital elements (NORAD 100902 · PROJECT SUNCATCHER M1)
-  const prop = propagateClientOrbit(orbitSim.elements, orbitSim.virtualTimestampMs);
-  if (orbitSim.initialArgOfLatitudeRad === null) {
-    orbitSim.initialArgOfLatitudeRad = prop.argumentOfLatitudeRad;
-    orbitSim.initialGmstRad = prop.gmstRad;
+  for (const p of orbitSim.planets) {
+    p.angle = (p.angle + dt * p.speed) % (Math.PI * 2);
   }
 
-  // Keep 3D marker anchored on front hemisphere while advancing at exact real satellite angular velocity
-  const deltaOrbRad = prop.argumentOfLatitudeRad - orbitSim.initialArgOfLatitudeRad;
-  const deltaGmstRad = prop.gmstRad - orbitSim.initialGmstRad;
-
-  orbitSim.orbitAngleRad = normalizePosAngle(0.72 + deltaOrbRad);
-  orbitSim.earthSpinRad = normalizePosAngle(0.45 + deltaGmstRad);
-  orbitSim.cloudDriftRad = normalizePosAngle(orbitSim.earthSpinRad * 1.28);
-
-  orbitSim.latDeg = prop.latDeg;
-  orbitSim.lonDeg = prop.lonDeg;
-  orbitSim.altitudeKm = prop.altitudeKm;
-  orbitSim.velocityKms = prop.velocityKms;
-
-  // Synchronize Main Scene Out-the-Window 3D Earth with the exact same orbitSim state:
-  // 1) Station's orbital revolution pitches the Earth horizon passing beneath the station
+  // 1) Synchronize Main Scene Out-the-Window 3D Earth with orbitSim state
   earthLayers.orbitalTrackPitchGroup.rotation.x = -orbitSim.orbitAngleRad;
-  // 2) Earth's own axial spin rotates continents & city lights around Earth's polar axis
   earthLayers.earthAxialSpinGroup.rotation.y = orbitSim.earthSpinRad;
-  // 3) Atmospheric clouds drift slightly faster
   earthLayers.cloudMesh.rotation.y = orbitSim.cloudDriftRad - orbitSim.earthSpinRad;
 
-  // Keep the in-scene 3D monitor screen canvas updated with the moving orbit dot
-  updateInSceneMonitorScreen(player.hoverTarget === 'monitor');
-  if (gameState.orbitMonitorOpen) {
-    updateOrbitMonitorHudLabels();
+  // 2) Synchronize Main Scene Out-the-Window 3D Sun, 3D Moon, and Ecliptic Solar System Planets
+  if (celestialSky) {
+    celestialSky.sunCoreMesh.rotation.y = orbitSim.sunSpinRad;
+    const sunPulse = 28 + Math.sin(orbitSim.simTimeSec * 0.04) * 1.4;
+    celestialSky.sunCoronaSprite.scale.set(sunPulse, sunPulse, 1);
+
+    // Visible orbital motion of the 3D Moon along its inclined 3D sky lunar orbit ring
+    const mPhase = orbitSim.moonOrbitAngleRad;
+    const mR = celestialSky.moonSkyOrbitRadius;
+    celestialSky.moonBodyGroup.position.set(
+      Math.cos(mPhase) * mR,
+      0,
+      Math.sin(mPhase) * mR
+    );
+    celestialSky.moonMesh.rotation.y = orbitSim.moonSpinRad;
+
+    // Gentle orbital drift & axial spin of Ecliptic Solar System Planets in the sky
+    for (let i = 0; i < celestialSky.skyPlanets.length; i++) {
+      const sp = celestialSky.skyPlanets[i];
+      const pSim = orbitSim.planets.find((pl) => pl.key === sp.key);
+      const tShift = pSim ? Math.sin(pSim.angle) * 0.015 : 0;
+      const t = Math.max(0.02, Math.min(0.98, sp.baseT + tShift));
+      const pt = celestialSky.eclipticCurve.getPoint(t);
+      sp.group.position.copy(pt);
+      sp.mesh.rotation.y += dt * 0.25;
+    }
   }
+
+  // Keep the in-scene 3D monitor screen canvas updated with Sun, Moon, Earth & Suncatcher
+  updateInSceneMonitorScreen(player.hoverTarget === 'monitor');
 }
 
-// Render 1 Frame of the 3D Orbit Monitor Modal (Called ONLY when gameState.orbitMonitorOpen === true)
+// Helper to project a 3D world position to 2D viewport pixel coordinates inside #orbit-monitor-viewport
 const omTempWorldVec = new THREE.Vector3();
+const omPlanetTempVec = new THREE.Vector3();
+
+function projectToMonitorViewport(worldVec, cameraObj, vpW, vpH) {
+  omPlanetTempVec.copy(worldVec).project(cameraObj);
+  return {
+    x: (omPlanetTempVec.x * 0.5 + 0.5) * vpW,
+    y: (-omPlanetTempVec.y * 0.5 + 0.5) * vpH,
+    visible: omPlanetTempVec.z > -1 && omPlanetTempVec.z < 1,
+  };
+}
+
+// Render 1 Frame of the 3D Orbit & Solar System Monitor Modal (Called ONLY when gameState.orbitMonitorOpen === true)
 function renderOrbitMonitorFrame(nowSec = 0) {
   if (!gameState.orbitMonitorOpen) return;
   initOrbitMonitor3DView();
   if (!orbitMonitorView.initialized) return;
 
+  const vp = document.getElementById('orbit-monitor-viewport');
+  const w = vp ? vp.clientWidth || 680 : 680;
+  const h = vp ? vp.clientHeight || 425 : 425;
+  const isSolarMode = orbitSim.orbitViewMode === 'solar';
+  const planetNames =
+    I18N[gameState.lang]?.orbitMonitor?.planets || I18N.ko.orbitMonitor.planets;
+
+  // --------------------------------------------------------------------------
+  // Update Group A: 3D Earth + Suncatcher 650km Orbit + 3D Moon + 3D Sun
+  // --------------------------------------------------------------------------
   const R = orbitMonitorView.orbitRadius;
   const angle = orbitSim.orbitAngleRad;
 
-  // 1. Update Earth axial rotation inside the monitor to match orbitSim.earthSpinRad
   orbitMonitorView.earthSpinGroup.rotation.y = orbitSim.earthSpinRad;
   orbitMonitorView.cloudMesh.rotation.y =
     orbitSim.cloudDriftRad - orbitSim.earthSpinRad;
 
-  // 2. Update Suncatcher marker position along the single 3D orbit ring
   const mx = Math.cos(angle) * R;
   const mz = Math.sin(angle) * R;
   orbitMonitorView.markerGroup.position.set(mx, 0, mz);
@@ -2983,14 +3984,12 @@ function renderOrbitMonitorFrame(nowSec = 0) {
   const pulseScale = 1 + Math.sin(nowSec * 5.0) * 0.18;
   orbitMonitorView.markerPulseHalo.scale.setScalar(pulseScale);
 
-  // 3. Update nadir line from Earth surface to current marker
   const posAttr = orbitMonitorView.nadirLineGeom.getAttribute('position');
   const surfR = orbitMonitorView.earthRadius;
   posAttr.setXYZ(0, Math.cos(angle) * surfR, 0, Math.sin(angle) * surfR);
   posAttr.setXYZ(1, mx, 0, mz);
   posAttr.needsUpdate = true;
 
-  // 4. Update travel direction arrow cone just ahead of marker along the orbit tangent
   const aheadAngle = angle + 0.14;
   const ax = Math.cos(aheadAngle) * R;
   const az = Math.sin(aheadAngle) * R;
@@ -3003,29 +4002,202 @@ function renderOrbitMonitorFrame(nowSec = 0) {
   orbitMonitorView.orbitPlaneGroup.localToWorld(tangentTarget);
   orbitMonitorView.directionArrow.lookAt(tangentTarget);
 
-  // 5. Render the 3D Orbit Monitor scene
-  orbitMonitorView.scene.updateMatrixWorld(true);
-  orbitMonitorView.renderer.render(orbitMonitorView.scene, orbitMonitorView.camera);
-  orbitSim.monitorRenderFrames += 1;
+  // Update 3D Moon on its Lunar Orbit around Earth
+  const moonR = orbitMonitorView.moonOrbitRadius;
+  const mAngle = orbitSim.moonOrbitAngleRad;
+  orbitMonitorView.moonGroup.position.set(
+    Math.cos(mAngle) * moonR,
+    0,
+    Math.sin(mAngle) * moonR
+  );
+  orbitMonitorView.moonMesh.rotation.y = orbitSim.moonSpinRad;
 
-  // 6. Project 3D Marker position to 2D floating label ("SUNCATCHER / 현재 위치" + "진행 방향 ➔")
-  orbitMonitorView.markerGroup.getWorldPosition(omTempWorldVec);
-  orbitMonitorView.markerWorldPos.copy(omTempWorldVec);
-  omTempWorldVec.project(orbitMonitorView.camera);
+  // Update 3D Sun in the Earth Monitor Backdrop
+  orbitMonitorView.monitorSunMesh.rotation.y = orbitSim.sunSpinRad;
+  orbitMonitorView.monitorSunCorona.scale.setScalar(1 + Math.sin(nowSec * 3.2) * 0.08);
 
-  const vp = document.getElementById('orbit-monitor-viewport');
-  const labelEl = document.getElementById('orbit-marker-label');
-  if (vp && labelEl) {
-    const w = vp.clientWidth || 680;
-    const h = vp.clientHeight || 425;
+  // --------------------------------------------------------------------------
+  // Update Group B: Full 3D Solar System Orrery (Sun + 8 Planets + Subsystems)
+  // --------------------------------------------------------------------------
+  orbitMonitorView.solarSunMesh.rotation.y = orbitSim.sunSpinRad;
+  orbitMonitorView.solarSunCorona.scale.setScalar(1 + Math.sin(nowSec * 3.5) * 0.08);
+  orbitMonitorView.asteroidBelt.rotation.y = orbitSim.simTimeSec * 0.0004;
+
+  for (const entry of orbitMonitorView.planetEntries) {
+    const p = entry.data;
+    const px = Math.cos(p.angle) * p.orbitRadius;
+    const pz = Math.sin(p.angle) * p.orbitRadius;
+    entry.group.position.set(px, 0, pz);
+    entry.mesh.rotation.y = orbitSim.earthSpinRad * 0.8;
+  }
+
+  if (orbitMonitorView.solarMoonPivot) {
+    orbitMonitorView.solarMoonPivot.rotation.y = -orbitSim.moonOrbitAngleRad;
+  }
+  if (orbitMonitorView.solarSuncatcherPivot) {
+    orbitMonitorView.solarSuncatcherPivot.rotation.y = -orbitSim.orbitAngleRad;
+  }
+
+  // --------------------------------------------------------------------------
+  // Render Pass 1: Main Viewport ('earth' mode OR 'solar' mode)
+  // --------------------------------------------------------------------------
+  const pipBadgeEl = document.getElementById('orbit-solar-pip-badge');
+
+  if (!isSolarMode) {
+    orbitMonitorView.earthSystemGroup.visible = true;
+    orbitMonitorView.solarSystemGroup.visible = false;
+
+    orbitMonitorView.camera.position.set(0, 1.65, 6.25);
+    orbitMonitorView.camera.lookAt(0, 0, 0);
+    orbitMonitorView.scene.updateMatrixWorld(true);
+
+    orbitMonitorView.renderer.setViewport(0, 0, w, h);
+    orbitMonitorView.renderer.setScissorTest(false);
+    orbitMonitorView.renderer.render(orbitMonitorView.scene, orbitMonitorView.camera);
+
+    // Project 3D Suncatcher Marker to 2D floating label
+    orbitMonitorView.markerGroup.getWorldPosition(omTempWorldVec);
+    orbitMonitorView.markerWorldPos.copy(omTempWorldVec);
+    omTempWorldVec.project(orbitMonitorView.camera);
     const sx = (omTempWorldVec.x * 0.5 + 0.5) * w;
-    const sy = Math.max(32, Math.min(h - 32, (-omTempWorldVec.y * 0.5 + 0.5) * h));
+    const sy = (-omTempWorldVec.y * 0.5 + 0.5) * h;
     orbitMonitorView.markerScreenPos = { x: Number(sx.toFixed(1)), y: Number(sy.toFixed(1)) };
-    labelEl.style.left = `${sx}px`;
-    labelEl.style.top = `${sy}px`;
-    // Flip label to the left of the marker when near the right viewport border so it never clips
-    labelEl.style.transform =
-      sx > w - 245 ? 'translate(calc(-100% - 14px), -50%)' : 'translate(14px, -50%)';
+    const labelEl = document.getElementById('orbit-marker-label');
+    if (labelEl) {
+      labelEl.style.left = `${sx}px`;
+      labelEl.style.top = `${sy}px`;
+    }
+
+    // Show floating 2D tags for 3D Sun (☀️ 태양) and 3D Moon (🌙 달) in 'earth' mode
+    for (const [key, el] of Object.entries(orbitMonitorView.planetLabelEls)) {
+      if (key === 'sun') {
+        orbitMonitorView.monitorSunGroup.getWorldPosition(omPlanetTempVec);
+        const pt = projectToMonitorViewport(omPlanetTempVec, orbitMonitorView.camera, w, h);
+        el.textContent = `☀️ ${planetNames.sun}`;
+        el.style.left = `${pt.x}px`;
+        el.style.top = `${pt.y - 26}px`;
+        el.style.display = pt.visible ? 'block' : 'none';
+      } else if (key === 'moon') {
+        orbitMonitorView.moonGroup.getWorldPosition(omPlanetTempVec);
+        const pt = projectToMonitorViewport(omPlanetTempVec, orbitMonitorView.camera, w, h);
+        el.textContent = `🌙 ${planetNames.moon}`;
+        el.style.left = `${pt.x}px`;
+        el.style.top = `${pt.y - 20}px`;
+        el.style.display = pt.visible ? 'block' : 'none';
+      } else {
+        el.style.display = 'none';
+      }
+    }
+
+    // ------------------------------------------------------------------------
+    // Render Pass 2 (PiP Inset): Live 3D Solar System Mini-Map in bottom-right
+    // ------------------------------------------------------------------------
+    const pipW = Math.min(200, Math.round(w * 0.28));
+    const pipH = Math.min(126, Math.round(h * 0.28));
+    const pipX = w - pipW - 12;
+    const pipY = 12; // Bottom-right in WebGL coordinates (Y=0 is bottom)
+
+    orbitMonitorView.earthSystemGroup.visible = false;
+    orbitMonitorView.solarSystemGroup.visible = true;
+    orbitMonitorView.pipCamera.aspect = pipW / pipH;
+    orbitMonitorView.pipCamera.updateProjectionMatrix();
+    orbitMonitorView.scene.updateMatrixWorld(true);
+
+    orbitMonitorView.renderer.setViewport(pipX, pipY, pipW, pipH);
+    orbitMonitorView.renderer.setScissor(pipX, pipY, pipW, pipH);
+    orbitMonitorView.renderer.setScissorTest(true);
+    orbitMonitorView.renderer.render(orbitMonitorView.scene, orbitMonitorView.pipCamera);
+
+    // Restore default state for 'earth' mode
+    orbitMonitorView.renderer.setScissorTest(false);
+    orbitMonitorView.renderer.setViewport(0, 0, w, h);
+    orbitMonitorView.earthSystemGroup.visible = true;
+    orbitMonitorView.solarSystemGroup.visible = false;
+    if (pipBadgeEl) pipBadgeEl.style.display = 'block';
+  } else {
+    // ------------------------------------------------------------------------
+    // Full-Screen 3D Solar System Orrery Mode ('solar' mode)
+    // ------------------------------------------------------------------------
+    orbitMonitorView.earthSystemGroup.visible = false;
+    orbitMonitorView.solarSystemGroup.visible = true;
+    if (pipBadgeEl) pipBadgeEl.style.display = 'none';
+
+    const sc = orbitMonitorView.solarCam;
+    const camX = Math.sin(sc.azimuth) * Math.cos(sc.elevation) * sc.distance;
+    const camY = Math.sin(sc.elevation) * sc.distance;
+    const camZ = Math.cos(sc.azimuth) * Math.cos(sc.elevation) * sc.distance;
+    orbitMonitorView.camera.position.set(camX, camY, camZ);
+    orbitMonitorView.camera.lookAt(0, -0.15, 0);
+    orbitMonitorView.scene.updateMatrixWorld(true);
+
+    orbitMonitorView.renderer.setViewport(0, 0, w, h);
+    orbitMonitorView.renderer.setScissorTest(false);
+    orbitMonitorView.renderer.render(orbitMonitorView.scene, orbitMonitorView.camera);
+
+    // Project Suncatcher marker around Earth in Solar System mode
+    if (orbitMonitorView.solarSuncatcherMarker) {
+      orbitMonitorView.solarSuncatcherMarker.getWorldPosition(omTempWorldVec);
+      orbitMonitorView.markerWorldPos.copy(omTempWorldVec);
+      omTempWorldVec.project(orbitMonitorView.camera);
+      const sx = (omTempWorldVec.x * 0.5 + 0.5) * w;
+      const sy = (-omTempWorldVec.y * 0.5 + 0.5) * h;
+      orbitMonitorView.markerScreenPos = { x: Number(sx.toFixed(1)), y: Number(sy.toFixed(1)) };
+      const labelEl = document.getElementById('orbit-marker-label');
+      if (labelEl) {
+        labelEl.style.left = `${sx}px`;
+        labelEl.style.top = `${sy}px`;
+      }
+    }
+
+    // Project Floating 2D Labels for Sun + All 8 Planets + Moon
+    const sunTag = orbitMonitorView.planetLabelEls.sun;
+    if (sunTag) {
+      const pt = projectToMonitorViewport(
+        new THREE.Vector3(0, 0.72, 0),
+        orbitMonitorView.camera,
+        w,
+        h
+      );
+      sunTag.textContent = `☀️ ${planetNames.sun}`;
+      sunTag.style.left = `${pt.x}px`;
+      sunTag.style.top = `${pt.y}px`;
+      sunTag.style.display = pt.visible ? 'block' : 'none';
+    }
+
+    const moonTag = orbitMonitorView.planetLabelEls.moon;
+    if (moonTag) {
+      moonTag.style.display = 'none';
+    }
+
+    for (const entry of orbitMonitorView.planetEntries) {
+      const key = entry.data.key;
+      const tag = orbitMonitorView.planetLabelEls[key];
+      if (!tag) continue;
+      entry.group.getWorldPosition(omPlanetTempVec);
+      omPlanetTempVec.y += entry.data.size + 0.16;
+      const pt = projectToMonitorViewport(omPlanetTempVec, orbitMonitorView.camera, w, h);
+      if (key === 'earth') {
+        tag.textContent = `🌍 ${planetNames.earth} + 🌙 ${planetNames.moon}`;
+      } else if (key === 'saturn') {
+        tag.textContent = `🪐 ${planetNames.saturn}`;
+      } else {
+        tag.textContent = planetNames[key] || key;
+      }
+      tag.style.left = `${pt.x}px`;
+      tag.style.top = `${pt.y}px`;
+      tag.style.display = pt.visible ? 'block' : 'none';
+    }
+  }
+
+  orbitSim.monitorRenderFrames += 1;
+}
+
+function setOrbitMonitorMode(mode) {
+  if (mode !== 'earth' && mode !== 'solar') return;
+  orbitSim.orbitViewMode = mode;
+  updateHudTranslations();
+  if (gameState.orbitMonitorOpen) {
+    renderOrbitMonitorFrame(performance.now() * 0.001);
   }
 }
 
@@ -3041,10 +4213,13 @@ function clearActiveInputsAndDrag() {
   player.alignKeys.pitchUp = false;
 }
 
-function openOrbitMonitor() {
+function openOrbitMonitor(preferredMode = 'earth') {
   void ensureBgmPlaying();
   clearActiveInputsAndDrag();
-  void syncOrbitFromApi();
+
+  if (preferredMode === 'earth' || preferredMode === 'solar') {
+    orbitSim.orbitViewMode = preferredMode;
+  }
 
   // Release Pointer Lock if active when opening the monitor
   if (document.pointerLockElement) {
@@ -3097,18 +4272,48 @@ if (lblOrbitMonitorBtn) {
   });
   lblOrbitMonitorBtn.addEventListener('click', (e) => {
     e.stopPropagation();
-    openOrbitMonitor();
+    openOrbitMonitor('earth');
   });
 }
 
-const orbitSpeedBtn = document.getElementById('orbit-speed-btn');
-if (orbitSpeedBtn) {
-  orbitSpeedBtn.addEventListener('click', () => {
-    const scales = [1, 10, 30];
-    const idx = scales.indexOf(orbitSim.timeScale);
-    orbitSim.timeScale = scales[(idx + 1) % scales.length];
-    updateOrbitMonitorHudLabels();
-    updateInSceneMonitorScreen(player.hoverTarget === 'monitor');
+// Sky Labels for Sun, Moon, and Solar System open the 3D Monitor directly
+const lblSunBtn = document.getElementById('label-sun');
+if (lblSunBtn) {
+  lblSunBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openOrbitMonitor('solar');
+  });
+}
+
+const lblMoonBtn = document.getElementById('label-moon');
+if (lblMoonBtn) {
+  lblMoonBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openOrbitMonitor('earth');
+  });
+}
+
+const lblSolarSystemBtn = document.getElementById('label-solar-system');
+if (lblSolarSystemBtn) {
+  lblSolarSystemBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openOrbitMonitor('solar');
+  });
+}
+
+// Mode Switch Buttons inside Orbit Monitor Header & PiP Badge
+const modeEarthBtn = document.getElementById('orbit-mode-earth-btn');
+if (modeEarthBtn) {
+  modeEarthBtn.addEventListener('click', () => setOrbitMonitorMode('earth'));
+}
+const modeSolarBtn = document.getElementById('orbit-mode-solar-btn');
+if (modeSolarBtn) {
+  modeSolarBtn.addEventListener('click', () => setOrbitMonitorMode('solar'));
+}
+const solarPipBadge = document.getElementById('orbit-solar-pip-badge');
+if (solarPipBadge) {
+  solarPipBadge.addEventListener('click', () => {
+    setOrbitMonitorMode(orbitSim.orbitViewMode === 'solar' ? 'earth' : 'solar');
   });
 }
 
@@ -3496,7 +4701,10 @@ function animate(now) {
 async function initGame() {
   const res = await fetch('/api/state');
   const s = await res.json();
-  gameState.lang = s.lang || 'ko';
+  if (s.sessionId) {
+    gameState.sessionId = s.sessionId;
+  }
+  gameState.lang = s.lang || 'en';
   gameState.activeDesignVersion = s.activeDesignVersion;
   gameState.designConfirmed = s.designConfirmed;
   gameState.approvedDesignVersion = s.approvedDesignVersion;
@@ -3522,8 +4730,26 @@ async function initGame() {
     }
   }
 
+  // Load initial Lyria Playlist & Prompt Pool
+  try {
+    const lyriaRes = await fetch('/api/lyria/status');
+    if (lyriaRes.ok) {
+      const lyriaStatus = await lyriaRes.json();
+      if (Array.isArray(lyriaStatus.promptPool) && lyriaStatus.promptPool.length > 0) {
+        gameState.lyriaPromptPool = lyriaStatus.promptPool;
+      }
+      if (Array.isArray(lyriaStatus.playlist) && lyriaStatus.playlist.length > 0) {
+        gameState.lyriaPlaylist = lyriaStatus.playlist;
+        playLyriaPlaylistTrack(0, false);
+      } else {
+        renderLyriaPlaylistQueue();
+      }
+    }
+  } catch (_err) {
+    renderLyriaPlaylistQueue();
+  }
+
   appendDialogueMessage('argon', I18N[gameState.lang].argon.welcome);
-  void syncOrbitFromApi();
   stepOrbitSimulation(0.016);
   stepPlayerPhysics(0.016);
   updateOpticalPuzzle();
@@ -3574,6 +4800,9 @@ window.__suncatcherTest = {
     rightDoorX: rightDoorPanel.position.x,
     bgmVolume: gameState.bgmVolume,
     bgmDucked: gameState.bgmDucked,
+    bgmPlaylistMode: gameState.bgmPlaylistMode,
+    lyriaPlaylistCount: gameState.lyriaPlaylist.length,
+    lyriaCurrentTrackIndex: gameState.lyriaCurrentTrackIndex,
     argonSpeaking: gameState.argonSpeaking,
     player: {
       position: player.position.toArray(),
@@ -3585,45 +4814,44 @@ window.__suncatcherTest = {
   }),
   getOrbitState: () => ({
     orbitMonitorOpen: gameState.orbitMonitorOpen,
-    apiSynced: orbitSim.apiSynced,
-    apiSource: orbitSim.apiSource,
-    noradId: orbitSim.noradId,
-    objectName: orbitSim.objectName,
-    objectId: orbitSim.objectId,
+    orbitViewMode: orbitSim.orbitViewMode,
     altitudeKm: orbitSim.altitudeKm,
-    stationDesignAltitudeKm: orbitSim.stationDesignAltitudeKm,
     inclinationDeg: orbitSim.inclinationDeg,
-    velocityKms: orbitSim.velocityKms,
-    periodMin: orbitSim.periodMin,
-    latDeg: orbitSim.latDeg,
-    lonDeg: orbitSim.lonDeg,
     timeScale: orbitSim.timeScale,
     simTimeSec: Number(orbitSim.simTimeSec.toFixed(2)),
     orbitAngleRad: Number(orbitSim.orbitAngleRad.toFixed(4)),
     orbitAngleDeg: Number(((orbitSim.orbitAngleRad * 180) / Math.PI).toFixed(2)),
     earthSpinRad: Number(orbitSim.earthSpinRad.toFixed(4)),
     earthSpinDeg: Number(((orbitSim.earthSpinRad * 180) / Math.PI).toFixed(2)),
+    moonOrbitAngleRad: Number(orbitSim.moonOrbitAngleRad.toFixed(4)),
+    sunSpinRad: Number(orbitSim.sunSpinRad.toFixed(4)),
     outWindowEarthPitchRad: Number(earthLayers.orbitalTrackPitchGroup.rotation.x.toFixed(4)),
     outWindowEarthSpinRad: Number(earthLayers.earthAxialSpinGroup.rotation.y.toFixed(4)),
     monitorEarthSpinRad: orbitMonitorView.earthSpinGroup
       ? Number(orbitMonitorView.earthSpinGroup.rotation.y.toFixed(4))
       : null,
+    monitorMoonPos: orbitMonitorView.moonGroup
+      ? orbitMonitorView.moonGroup.position.toArray().map((v) => Number(v.toFixed(3)))
+      : null,
     markerLocalPos: orbitMonitorView.markerGroup
       ? orbitMonitorView.markerGroup.position.toArray().map((v) => Number(v.toFixed(3)))
       : null,
     markerScreenPos: orbitMonitorView.markerScreenPos,
+    planets: orbitSim.planets.map((p) => ({
+      key: p.key,
+      orbitRadius: p.orbitRadius,
+      angleRad: Number(p.angle.toFixed(4)),
+    })),
     openCount: orbitSim.openCount,
     monitorRenderFrames: orbitSim.monitorRenderFrames,
     renderLoopCount: orbitSim.renderLoopCount,
   }),
-  setOrbitTimeScale: (scale = 1) => {
-    orbitSim.timeScale = Number(scale) || 1;
-    updateOrbitMonitorHudLabels();
-    updateInSceneMonitorScreen(player.hoverTarget === 'monitor');
+  openOrbitMonitor: (mode = 'earth') => {
+    openOrbitMonitor(mode);
     return window.__suncatcherTest.getOrbitState();
   },
-  openOrbitMonitor: () => {
-    openOrbitMonitor();
+  setOrbitViewMode: (mode = 'solar') => {
+    setOrbitMonitorMode(mode);
     return window.__suncatcherTest.getOrbitState();
   },
   closeOrbitMonitor: () => {
@@ -3649,6 +4877,9 @@ window.__suncatcherTest = {
       nightCityLights: Boolean(earthLayers.cityLightsMesh?.visible),
       clouds: Boolean(earthLayers.cloudMesh?.visible),
       atmosphere: Boolean(earthLayers.atmosphereMesh?.visible),
+      sun: Boolean(celestialSky?.sunCoreMesh?.visible),
+      moon: Boolean(celestialSky?.moonMesh?.visible),
+      solarSystemPlanets: (celestialSky?.skyPlanets?.length || 0) >= 6,
     },
   }),
   stepPhysics: (dtSec, count = 1) => {

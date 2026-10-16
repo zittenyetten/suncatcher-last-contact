@@ -3,9 +3,15 @@ node_modules/
 .env.*
 !.env.example
 *.log
-.git/
 .ouroboros/
 submission/
 artifacts/verification/
 artifacts/qa-*/
 artifacts/audio/
+*.key
+*.pem
+*service_account*.json
+*service-account*.json
+gcp-key*.json
+.playwright/
+test-results/

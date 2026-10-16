@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -129,32 +129,72 @@
         box-shadow: 0 0 18px rgba(56, 189, 248, 0.6);
       }
 
-      .world-tag.tag-airlock {
+      .world-tag.tag-sun {
         pointer-events: auto;
-        cursor: default;
-        border-color: rgba(244, 63, 94, 0.55);
-        background: rgba(28, 10, 18, 0.84);
-        color: #fecdd3;
-        padding: 5px 11px;
-        font-size: 11px;
-        transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.2s ease, background 0.2s ease;
+        cursor: pointer;
+        border-color: rgba(251, 191, 36, 0.85);
+        background: rgba(54, 28, 6, 0.86);
+        color: #fef08a;
+        box-shadow: 0 0 16px rgba(251, 191, 36, 0.45);
       }
 
-      .world-tag.tag-airlock.open {
+      .world-tag.tag-sun:hover {
+        transform: translate(-50%, -105%) scale(1.06);
+        border-color: #fef08a;
+        background: rgba(78, 40, 8, 0.95);
+      }
+
+      .world-tag.tag-moon {
+        pointer-events: auto;
         cursor: pointer;
+        border-color: rgba(203, 213, 225, 0.78);
+        background: rgba(15, 23, 42, 0.88);
+        color: #f1f5f9;
+        box-shadow: 0 0 14px rgba(148, 163, 184, 0.35);
+      }
+
+      .world-tag.tag-moon:hover {
+        transform: translate(-50%, -105%) scale(1.06);
+        border-color: #ffffff;
+        background: rgba(30, 41, 59, 0.96);
+      }
+
+      .world-tag.tag-solar {
+        pointer-events: auto;
+        cursor: pointer;
+        border-color: rgba(167, 139, 250, 0.78);
+        background: rgba(24, 16, 48, 0.88);
+        color: #ddd6fe;
+        box-shadow: 0 0 14px rgba(139, 92, 246, 0.35);
+      }
+
+      .world-tag.tag-solar:hover {
+        transform: translate(-50%, -105%) scale(1.06);
+        border-color: #c4b5fd;
+        background: rgba(38, 24, 72, 0.96);
+        color: #ffffff;
+      }
+
+      .world-tag.tag-airlock {
+        pointer-events: auto;
+        cursor: pointer;
+        border-color: rgba(244, 63, 94, 0.65);
+        background: rgba(28, 10, 18, 0.86);
+        color: #fecdd3;
+        transition: all 0.2s ease;
+      }
+
+      .world-tag.tag-airlock.unlocked {
         border-color: rgba(16, 185, 129, 0.9);
-        background: rgba(6, 52, 38, 0.92);
-        color: #ecfdf5;
-        font-weight: 700;
+        background: rgba(6, 48, 36, 0.92);
+        color: #a7f3d0;
         box-shadow: 0 0 18px rgba(16, 185, 129, 0.5);
       }
 
-      .world-tag.tag-airlock.open:hover,
-      .world-tag.tag-airlock.open.hovered {
-        transform: translate(-50%, -106%) scale(1.07);
-        border-color: #6ee7b7;
-        background: rgba(5, 78, 56, 0.98);
-        box-shadow: 0 0 24px rgba(16, 185, 129, 0.8);
+      .world-tag.tag-airlock.unlocked:hover {
+        transform: translate(-50%, -105%) scale(1.06);
+        background: rgba(6, 78, 59, 0.98);
+        color: #ffffff;
       }
 
       /* Reticle & Subtle Mouse Hint */
@@ -570,6 +610,79 @@
         cursor: pointer;
       }
 
+      /* Directional Alignment Hint Banner */
+      #align-hint-banner {
+        display: none;
+        background: rgba(14, 34, 58, 0.92);
+        border: 1px solid rgba(56, 189, 248, 0.55);
+        border-radius: 9px;
+        padding: 8px 10px;
+        font-size: 11.5px;
+        color: #bae6fd;
+        line-height: 1.45;
+      }
+
+      #align-hint-banner.visible {
+        display: block;
+      }
+
+      /* Ground Pass & Rescue Uplink Transmission Box */
+      #tx-status-box {
+        background: rgba(6, 18, 34, 0.92);
+        border: 1px solid rgba(56, 189, 248, 0.45);
+        border-radius: 11px;
+        padding: 10px 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 7px;
+      }
+
+      #tx-status-box.in-window {
+        border-color: rgba(16, 185, 129, 0.78);
+        box-shadow: 0 0 16px rgba(16, 185, 129, 0.18);
+      }
+
+      .tx-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 11.5px;
+        color: #cbd5e1;
+      }
+
+      .tx-progress-track {
+        width: 100%;
+        height: 9px;
+        background: rgba(15, 23, 42, 0.95);
+        border: 1px solid rgba(148, 163, 184, 0.25);
+        border-radius: 999px;
+        overflow: hidden;
+      }
+
+      #tx-progress-fill {
+        height: 100%;
+        width: 0%;
+        background: linear-gradient(90deg, #0ea5e9, #10b981);
+        border-radius: 999px;
+        transition: width 0.15s linear;
+      }
+
+      .ground-ack-banner {
+        display: none;
+        background: rgba(6, 58, 43, 0.92);
+        border: 1px solid rgba(16, 185, 129, 0.85);
+        border-radius: 8px;
+        padding: 7px 9px;
+        font-size: 11.5px;
+        font-weight: 700;
+        color: #a7f3d0;
+        line-height: 1.4;
+      }
+
+      .ground-ack-banner.visible {
+        display: block;
+      }
+
       /* Completion Banner (Shown when mission completes, hiding normal controls) */
       #completion-banner {
         display: none;
@@ -892,6 +1005,38 @@
         margin-top: 2px;
       }
 
+      #orbit-ground-label {
+        position: absolute;
+        transform: translate(-50%, -125%);
+        background: rgba(6, 38, 29, 0.92);
+        border: 1.5px solid #10b981;
+        border-radius: 8px;
+        padding: 4px 9px;
+        pointer-events: none;
+        white-space: nowrap;
+        font-size: 10.5px;
+        font-weight: 800;
+        color: #a7f3d0;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.65), 0 0 12px rgba(16, 185, 129, 0.35);
+      }
+
+      #orbit-pass-hud {
+        position: absolute;
+        top: 10px;
+        left: 12px;
+        background: rgba(5, 16, 30, 0.88);
+        border: 1px solid rgba(56, 189, 248, 0.45);
+        border-radius: 9px;
+        padding: 6px 11px;
+        font-size: 11.5px;
+        font-weight: 700;
+        color: #e2e8f0;
+        pointer-events: none;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
       .orbit-modal-footer {
         display: flex;
         align-items: center;
@@ -921,6 +1066,82 @@
         height: 9px;
         border-radius: 50%;
         display: inline-block;
+      }
+
+      .orbit-header-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .orbit-mode-switch {
+        display: inline-flex;
+        background: rgba(15, 23, 42, 0.9);
+        border: 1px solid rgba(56, 189, 248, 0.4);
+        border-radius: 9px;
+        padding: 3px;
+        gap: 4px;
+      }
+
+      .orbit-mode-btn {
+        padding: 5px 11px;
+        font-size: 11.5px;
+        font-weight: 700;
+        border-radius: 6px;
+        border: 1px solid transparent;
+        background: transparent;
+        color: #94a3b8;
+      }
+
+      .orbit-mode-btn.active {
+        background: linear-gradient(135deg, #0284c7, #0ea5e9);
+        border-color: #7dd3fc;
+        color: #ffffff;
+        box-shadow: 0 0 12px rgba(56, 189, 248, 0.35);
+      }
+
+      #orbit-solar-pip-badge {
+        position: absolute;
+        right: 12px;
+        bottom: 12px;
+        padding: 4px 10px;
+        border-radius: 8px;
+        background: rgba(10, 18, 36, 0.88);
+        border: 1px solid rgba(251, 191, 36, 0.65);
+        color: #fde68a;
+        font-size: 10.5px;
+        font-weight: 700;
+        cursor: pointer;
+        pointer-events: auto;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+        transition: transform 0.15s ease, border-color 0.15s ease;
+      }
+
+      #orbit-solar-pip-badge:hover {
+        transform: scale(1.04);
+        border-color: #fef08a;
+      }
+
+      #orbit-planet-labels {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        overflow: hidden;
+      }
+
+      .orbit-planet-tag {
+        position: absolute;
+        transform: translate(-50%, -125%);
+        padding: 2px 7px;
+        border-radius: 999px;
+        background: rgba(6, 13, 26, 0.84);
+        border: 1px solid rgba(148, 163, 184, 0.45);
+        color: #f8fafc;
+        font-size: 10.5px;
+        font-weight: 700;
+        white-space: nowrap;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.65);
       }
 
       /* Error Banner */
@@ -1024,116 +1245,58 @@
         font-size: 12px;
         color: #e2e8f0;
         white-space: pre-wrap;
-        max-height: 150px;
+        max-height: 120px;
         overflow-y: auto;
         line-height: 1.45;
       }
 
-      /* Rescue Request Transmission Box (Inside Align Stage Card) */
-      #tx-status-box {
-        background: rgba(6, 20, 36, 0.9);
-        border: 1px solid rgba(56, 189, 248, 0.42);
+      .lyria-playlist-box {
+        background: rgba(2, 8, 23, 0.88);
+        border: 1px solid rgba(56, 189, 248, 0.45);
         border-radius: 10px;
         padding: 10px 12px;
         display: flex;
         flex-direction: column;
+        gap: 8px;
+      }
+
+      .lyria-playlist-items {
+        display: flex;
+        flex-direction: column;
         gap: 6px;
+        max-height: 155px;
+        overflow-y: auto;
       }
 
-      #tx-status-box.active-pass {
-        border-color: rgba(16, 185, 129, 0.78);
-        box-shadow: 0 0 16px rgba(16, 185, 129, 0.18);
-      }
-
-      #tx-status-box.paused-pass {
-        border-color: rgba(245, 158, 11, 0.75);
-      }
-
-      .tx-header-row {
+      .lyria-playlist-item {
         display: flex;
         align-items: center;
         justify-content: space-between;
         gap: 8px;
-        font-size: 11.5px;
-      }
-
-      #tx-state-label {
-        font-weight: 700;
-        color: #e0f2fe;
-      }
-
-      #tx-percent-label {
-        font-size: 13px;
-        font-weight: 800;
-        color: #6ee7b7;
-        font-family: monospace;
-      }
-
-      .tx-progress-track {
-        width: 100%;
-        height: 9px;
-        background: rgba(15, 23, 42, 0.95);
-        border-radius: 999px;
-        overflow: hidden;
-        border: 1px solid rgba(148, 163, 184, 0.22);
-      }
-
-      #tx-progress-fill {
-        height: 100%;
-        width: 0%;
-        background: linear-gradient(90deg, #0ea5e9, #10b981);
-        border-radius: 999px;
-        transition: width 0.1s linear;
-      }
-
-      #tx-sub-info {
-        font-size: 11px;
-        color: #93c5fd;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 6px;
-      }
-
-      /* Orbit Monitor Ground Station Label & Pass Pill */
-      #orbit-ground-label {
-        position: absolute;
-        transform: translate(-50%, -120%);
-        background: rgba(6, 40, 32, 0.92);
-        border: 1.5px solid #10b981;
+        padding: 7px 10px;
         border-radius: 8px;
-        padding: 4px 9px;
-        pointer-events: none;
-        white-space: nowrap;
-        font-size: 11px;
-        font-weight: 700;
-        color: #a7f3d0;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.65), 0 0 12px rgba(16, 185, 129, 0.35);
+        background: rgba(15, 23, 42, 0.72);
+        border: 1px solid rgba(148, 163, 184, 0.25);
+        cursor: pointer;
+        transition: all 0.15s ease;
+        text-align: left;
       }
 
-      #orbit-pass-hud {
-        position: absolute;
-        top: 12px;
-        left: 12px;
-        background: rgba(5, 16, 30, 0.88);
-        border: 1px solid rgba(56, 189, 248, 0.45);
-        border-radius: 10px;
-        padding: 7px 12px;
-        font-size: 11.5px;
-        color: #e2e8f0;
-        display: flex;
-        flex-direction: column;
-        gap: 3px;
-        pointer-events: none;
+      .lyria-playlist-item:hover {
+        border-color: rgba(56, 189, 248, 0.65);
+        background: rgba(15, 32, 58, 0.88);
       }
 
-      .msg-control {
-        color: #ecfdf5;
-        background: rgba(6, 60, 45, 0.85);
-        padding: 6px 9px;
-        border-radius: 6px;
-        border-left: 3px solid #10b981;
-        font-weight: 600;
+      .lyria-playlist-item.active {
+        border-color: rgba(16, 185, 129, 0.85);
+        background: rgba(6, 48, 36, 0.75);
+        box-shadow: 0 0 12px rgba(16, 185, 129, 0.22);
+      }
+
+      .lyria-mode-btn-active {
+        background: linear-gradient(135deg, rgba(16, 185, 129, 0.28), rgba(14, 165, 233, 0.28)) !important;
+        border-color: rgba(16, 185, 129, 0.8) !important;
+        color: #a7f3d0 !important;
       }
     </style>
   </head>
@@ -1142,36 +1305,43 @@
       <canvas id="orbital-canvas"></canvas>
     </div>
 
-    <!-- 3D World Floating Callouts: Emitter -> Reflector -> Station Uplink Relay -> Orbit Monitor -> Airlock -->
+    <!-- 3D World Floating Callouts so Emitter -> Reflector -> Receiver, Sun, Moon, Solar System & Orbit Monitor are immediately clear -->
     <div id="world-labels">
-      <div id="label-emitter" class="world-tag tag-emitter">☀️ 입사광 (광원)</div>
+      <div id="label-sun" class="world-tag tag-sun">☀️ 태양</div>
+      <div id="label-moon" class="world-tag tag-moon">🌙 달</div>
+      <div id="label-solar-system" class="world-tag tag-solar">🪐 태양계 (토성·목성·화성·금성)</div>
+      <div id="label-emitter" class="world-tag tag-emitter">☀️ 입사광 발신기</div>
       <button id="label-orbit-monitor" class="world-tag tag-monitor" type="button">🌍 궤도 보기</button>
       <div id="label-reflector" class="world-tag tag-reflector">🪞 3D 반사판 마운트</div>
-      <div id="label-receiver" class="world-tag tag-receiver">📡 기지 송신 릴레이</div>
-      <button id="label-airlock" class="world-tag tag-airlock" type="button">🔒 에어록 (관제 승인 대기)</button>
+      <div id="label-receiver" class="world-tag tag-receiver">🎯 기지 송신 릴레이</div>
+      <button id="label-airlock" class="world-tag tag-airlock" type="button">🔒 기지 에어록 (잠김)</button>
     </div>
 
     <div id="reticle"></div>
 
     <div id="hud">
-      <!-- TOP BAR: 5-Step Progress + Single Objective Sentence + Compact Utility Menu -->
+      <!-- TOP BAR: 7-Step Progress + Single Objective Sentence + Compact Utility Menu -->
       <header id="top-bar" class="interactive">
         <div class="step-track" id="step-track">
-          <span class="step-pill active" id="step-pill-design">1. 설계·확인</span>
-          <span class="step-pill" id="step-pill-generate">2. 3D 생성</span>
-          <span class="step-pill" id="step-pill-mount">3. 장착</span>
-          <span class="step-pill" id="step-pill-align">4. 교신·송신</span>
-          <span class="step-pill" id="step-pill-return">5. 기지 귀환</span>
+          <span class="step-pill active" id="step-pill-design">1. 설계</span>
+          <span class="step-pill" id="step-pill-confirm">2. 확인</span>
+          <span class="step-pill" id="step-pill-generate">3. 생성</span>
+          <span class="step-pill" id="step-pill-mount">4. 장착</span>
+          <span class="step-pill" id="step-pill-align">5. 정렬</span>
+          <span class="step-pill" id="step-pill-pass">6. 교신·전송</span>
+          <span class="step-pill" id="step-pill-return">7. 귀환</span>
         </div>
 
         <div id="objective-box">
-          <div id="mission-phase-text">미세 운석 충돌로 통신이 손상되었습니다. 반사판 설계를 확인하거나 수정하세요.</div>
+          <div id="mission-phase-text">반사판 설계를 확인하거나 원하는 형태로 수정하세요.</div>
         </div>
 
         <div class="top-menu">
+          <button id="autoplay-btn" class="btn-compact btn-autoplay">✨ 자동 진행</button>
           <button id="guide-btn" class="btn-compact">📖 조작·가이드</button>
           <button id="bgm-toggle-btn" class="btn-compact">🎵 음악</button>
-          <button id="lyria-studio-btn" class="btn-compact">🎼 Lyria 음악 생성</button>
+          <button id="bgm-next-btn" class="btn-compact" title="다음 곡 재생">⏭ 다음 곡</button>
+          <button id="lyria-studio-btn" class="btn-compact">🎼 Lyria 플레이리스트</button>
           <button id="reset-cam-btn" class="btn-compact">🎥 시점 정렬 (C)</button>
           <button id="details-toggle-btn" class="btn-compact">ℹ️ 상세 정보</button>
           <button id="lang-toggle-btn" class="btn-compact">🌐 EN</button>
@@ -1217,8 +1387,10 @@
             <!-- Primary CTA: Confirm Current Design -->
             <button id="confirm-design-btn" class="btn-success">✅ 이 설계로 확인 (승인)</button>
 
-            <!-- Fast Reuse Button when an existing 3D reflector is already built (e.g. after Restart) -->
-            <button id="reuse-reflector-btn" class="btn-gold" style="display: none">♻️ 기존 3D 반사판 바로 장착</button>
+            <!-- Fast-Reuse Existing 3D Reflector CTA (Shown when a generated 3D reflector already exists) -->
+            <button id="reuse-reflector-btn" class="btn-gold" style="display: none">
+              ♻️ 기존 3D 반사판 바로 사용
+            </button>
 
             <!-- Toggle Button to Customize / Edit Design -->
             <button id="toggle-design-drawer-btn" style="width: 100%">📐 반사판 설계 열기 · 수정</button>
@@ -1292,38 +1464,19 @@
             <button id="equip-mount-btn" class="btn-gold">🔧 반사판 장착하기 (E)</button>
           </div>
 
-          <!-- STAGE 5: ALIGN BEAM TO STATION UPLINK RELAY & TRANSMIT RESCUE REQUEST -->
+          <!-- STAGE 5, 6 & 7: ALIGN RELAY, TRANSMIT IN PASS WINDOW & RETURN VIA AIRLOCK -->
           <div id="stage-section-align" class="stage-section">
             <div class="card-header">
               <span class="card-title" id="ui-align-title">송신 릴레이 정렬 & 지상국 교신</span>
               <span id="align-status-pill" class="badge badge-warn">릴레이 탐색 중</span>
             </div>
             <p class="card-sub" id="ui-align-sub">
-              반사광을 기지 송신 릴레이에 연결하고 교신 구간 동안 구조 요청을 100% 전송하세요.
+              반사광을 기지 송신 릴레이에 연결한 뒤 지상국 교신 구간에 구조 요청을 전송하세요.
             </p>
-
-            <!-- Rescue Request Transmission Progress & Pass Window Status -->
-            <div id="tx-status-box">
-              <div class="tx-header-row">
-                <span id="tx-state-label">교신 대기 · 연습 가능</span>
-                <strong id="tx-percent-label">0%</strong>
-              </div>
-              <div class="tx-progress-track">
-                <div id="tx-progress-fill"></div>
-              </div>
-              <div id="tx-sub-info">
-                <span id="tx-pass-timer-text">[교신 시작]을 누르면 지상국 교신 구간 5초 전으로 진입합니다</span>
-              </div>
-            </div>
-
-            <!-- Primary Mission Pass / Return CTAs -->
-            <button id="start-pass-btn" class="btn-primary">📡 교신 시작 (다음 교신 구간 진입)</button>
-            <button id="next-pass-btn" class="btn-gold" style="display: none">⏭️ 다음 교신으로 (5초 전 이동)</button>
-            <button id="return-base-btn" class="btn-success" style="display: none">🚪 에어록으로 기지 귀환</button>
 
             <div class="beam-meter-box">
               <div class="beam-meter-top">
-                <span id="ui-error-deg-label">릴레이 오차</span>
+                <span id="ui-error-deg-label">릴레이 각도 오차</span>
                 <strong id="ui-beam-error" style="color: #fde68a">18.4°</strong>
               </div>
               <div class="beam-progress-track">
@@ -1347,34 +1500,84 @@
               <input id="pitch-slider" type="range" min="-65" max="65" step="0.5" value="-12" />
             </div>
 
+            <!-- Directional Alignment Hint Banner (Displays guidance without auto-solving!) -->
+            <div id="align-hint-banner"></div>
+
+            <!-- Ground Station Pass & Rescue Uplink Transmission Panel -->
+            <div id="tx-status-box">
+              <div class="card-header">
+                <span style="font-size: 12px; font-weight: 800; color: #7dd3fc" id="ui-tx-title">
+                  📡 지상국 교신 · 구조 요청 송신
+                </span>
+                <span id="tx-phase-badge" class="badge badge-info">대기 중</span>
+              </div>
+
+              <div class="tx-row">
+                <span id="ui-tx-window-label">교신 구간 남은 시간</span>
+                <strong id="tx-window-timer" style="color: #fde68a; font-family: monospace">--.-s</strong>
+              </div>
+
+              <div class="tx-row">
+                <span id="ui-tx-progress-label">구조 신호 전송률</span>
+                <strong id="tx-progress-val" style="color: #6ee7b7; font-family: monospace">0%</strong>
+              </div>
+
+              <div class="tx-progress-track">
+                <div id="tx-progress-fill"></div>
+              </div>
+
+              <div id="tx-status-note" style="font-size: 11px; color: #94a3b8; line-height: 1.4">
+                교신 시작 전에는 시간 제한 없이 자유롭게 반사판 정렬을 연습할 수 있습니다.
+              </div>
+
+              <div id="ground-ack-banner" class="ground-ack-banner">
+                🛰️ 지상 관제: 구조 요청 수신 완료 · 에어록 개방 승인
+              </div>
+
+              <button id="start-pass-btn" class="btn-primary" type="button">
+                📡 교신 시작 (다음 지상국 구간 진입)
+              </button>
+
+              <button id="next-pass-btn" class="btn-gold" type="button" style="display: none">
+                📡 다음 교신 구간 대기 (재시도)
+              </button>
+
+              <button id="return-base-btn" class="btn-success" type="button" style="display: none">
+                🚪 에어록으로 기지 귀환
+              </button>
+            </div>
+
             <div style="display: flex; gap: 6px">
-              <button id="align-assist-btn" style="flex: 1">🧭 방향 힌트 · 미세 보정</button>
-              <button id="redesign-from-align-btn" class="btn-compact">📐 새 설계</button>
+              <button id="align-assist-btn" style="flex: 1" type="button">🧭 정렬 방향 힌트</button>
+              <button id="redesign-from-align-btn" class="btn-compact" type="button">📐 새 설계</button>
             </div>
           </div>
         </section>
       </main>
 
-      <!-- COMPLETION BANNER (Shown ONLY after returning inside through the open airlock) -->
+      <!-- COMPLETION BANNER (Shown when player completes transmission AND returns inside via airlock) -->
       <div id="completion-banner" class="interactive">
         <span class="badge badge-ok" id="ui-complete-badge">FINAL TRANSMISSION COMPLETE · SAFE RETURN</span>
         <h2 id="ui-complete-title">구조 요청 전달 완료 · 안전 귀환</h2>
         <p id="ui-complete-sub">
-          반사광으로 기지 송신 릴레이를 통해 구조 요청을 100% 전송하고, 관제 승인을 받아 기지 내부로 안전하게 귀환했습니다.
+          지상 관제소가 구조 요청을 수신하고 승인을 보내 에어록을 통해 기지 내부로 무사히 귀환했습니다.
         </p>
         <div class="completion-actions">
-          <button id="restart-mission-btn" class="btn-success" style="width: auto; padding: 8px 18px">🔄 다시 시작 (임무 초기화)</button>
-          <button id="complete-new-design-btn" class="btn-compact">📐 새 반사판 설계로 다시 시작</button>
+          <button id="restart-mission-btn" class="btn-success" style="width: auto; padding: 8px 16px" type="button">
+            🔄 미션 다시 시작
+          </button>
+          <button id="complete-adjust-btn" class="btn-compact" type="button">🔧 반사판 다시 보기</button>
+          <button id="complete-new-design-btn" class="btn-compact" type="button">📐 새 반사판 설계</button>
         </div>
       </div>
 
       <!-- BOTTOM BAR: Compact Argon Subtitle + Expandable Chat + Subtle Mouse Hint -->
       <footer id="bottom-bar">
         <div id="argon-bar" class="interactive">
-          <span class="argon-dot" id="argon-status-dot"></span>
+          <span class="argon-dot"></span>
           <span id="argon-name-label">아르곤 (AI)</span>
           <span id="argon-subtitle-text">
-            미세 운석 충돌로 비상 통신 경로가 손상되었습니다. 먼저 반사판 설계를 확인해 주세요.
+            주 반사판이 손상되어 수신기로 가는 빛이 끊겼습니다. 먼저 반사판 설계를 확인해 주세요.
           </span>
           <button id="voice-btn" class="btn-compact">🎙️ 음성 대화 (V)</button>
           <button id="toggle-chat-btn" class="btn-compact">💬 대화창</button>
@@ -1387,7 +1590,7 @@
     <!-- EXPANDABLE ARGON CHAT DRAWER -->
     <aside id="argon-chat-drawer" class="interactive">
       <div class="card-header">
-        <span class="card-title" id="ui-argon-title">아르곤 (ARGON) & 관제 교신 기록</span>
+        <span class="card-title" id="ui-argon-title">아르곤 (ARGON) 대화 기록</span>
         <button id="close-chat-btn" class="btn-compact">닫기</button>
       </div>
       <div id="dialogue-log">
@@ -1397,7 +1600,7 @@
         <input
           type="text"
           id="dialogue-input"
-          placeholder="아르곤에게 현재 교신 상태나 방향 힌트를 물어보세요..."
+          placeholder="아르곤에게 질문하거나 설계를 상의하세요..."
         />
         <button id="dialogue-send-btn">전송</button>
       </div>
@@ -1410,10 +1613,10 @@
         <button id="close-details-btn" class="btn-compact">닫기</button>
       </div>
       <div id="ui-game-title" style="font-size: 11px; color: var(--accent-cyan); font-weight: 700">
-        SUNCATCHER // 마지막 교신 (THE FINAL TRANSMISSION)
+        SUNCATCHER // 650KM 궤도 광학 복구 임무
       </div>
       <div id="ui-orbit-subtitle" style="font-size: 11px; color: var(--text-dim)">
-        고도 650 km 여명-황혼 궤도 · 외부 정비 작업대
+        고도 650 km 여명-황혼 태양동주기 궤도 (06:12 UTC)
       </div>
       <div id="ui-earth-layers" style="font-size: 11px; color: #93c5fd">
         지구 650km 궤도: 지표면 · 구름층 · 대기 산란 · 야간 도시 불빛 활성
@@ -1424,15 +1627,15 @@
         <span id="val-workzone" class="badge badge-ok">정상</span>
       </div>
       <div class="kv-row">
-        <span id="lbl-receiver">기지 송신 릴레이</span>
+        <span id="lbl-receiver">광수신기</span>
         <span id="val-receiver" class="badge badge-warn">대기 중</span>
       </div>
       <div class="kv-row">
-        <span id="lbl-comms">구조 요청 전송</span>
-        <span id="val-comms" class="badge badge-warn">대기 중</span>
+        <span id="lbl-comms">광통신 링크</span>
+        <span id="val-comms" class="badge badge-warn">단절됨</span>
       </div>
       <div class="kv-row">
-        <span id="lbl-door">에어록 게이트</span>
+        <span id="lbl-door">기지 게이트</span>
         <span id="val-door" class="badge badge-warn">잠김</span>
       </div>
       <div class="kv-row">
@@ -1464,11 +1667,11 @@
       ></div>
     </aside>
 
-    <!-- GUIDEBOOK MODAL (Contains Secondary Demo / Auto-Play Button) -->
+    <!-- GUIDEBOOK MODAL -->
     <div id="guide-modal" class="interactive">
       <div class="modal-card">
         <div class="card-header">
-          <span class="card-title" id="ui-guide-title" style="font-size: 15px">Suncatcher: 마지막 교신 플레이 가이드</span>
+          <span class="card-title" id="ui-guide-title" style="font-size: 15px">Suncatcher 플레이 가이드</span>
           <button id="close-guide-btn" class="btn-compact">닫기</button>
         </div>
         <p id="ui-guide-goal" style="font-size: 13px; color: #e2e8f0; line-height: 1.5"></p>
@@ -1476,85 +1679,94 @@
         <div style="border-top: 1px solid rgba(148,163,184,0.2); padding-top: 8px">
           <ul id="ui-guide-controls"></ul>
         </div>
-        <div
-          style="border-top: 1px solid rgba(148,163,184,0.2); padding-top: 10px; display: flex; flex-direction: column; gap: 6px"
-        >
-          <div id="ui-guide-demo-title" style="font-size: 12px; font-weight: 700; color: #fde68a">
-            전체 미션 자동 시연 (심사·안내용)
-          </div>
-          <div id="ui-guide-demo-sub" style="font-size: 11.5px; color: #94a3b8">
-            설계 승인부터 3D 생성, 장착, 교신 구간 진입, 100% 송신, 에어록 귀환까지 자동으로 시연합니다.
-          </div>
-          <button id="autoplay-btn" class="btn-autoplay" style="width: 100%; padding: 8px 12px">
-            🎬 시연 보기 (자동 진행)
-          </button>
-        </div>
       </div>
     </div>
 
-    <!-- ORBIT MONITOR MODAL (Interactive Virtual Orbit Simulation + Ground Station Pass Window) -->
+    <!-- ORBIT MONITOR MODAL (Interactive 650km Virtual Orbit + Solar System Simulation) -->
     <div id="orbit-modal" class="interactive">
       <div class="orbit-modal-card">
         <div class="orbit-modal-header">
           <div class="orbit-modal-title-group">
-            <div id="ui-orbit-modal-title">🌍 SUNCATCHER 궤도 & 지상국 교신 모니터</div>
-            <div id="ui-orbit-modal-meta">고도 650km · 가상 궤도 시뮬레이션 · 시간 배속</div>
+            <div id="ui-orbit-modal-title">🌍 SUNCATCHER 궤도 · 태양계 모니터</div>
+            <div id="ui-orbit-modal-meta">고도 650km · 가상 궤도 시뮬레이션 · 태양·달·행성 실시간 공전 · 시간 배속 120×</div>
           </div>
-          <div style="display: flex; align-items: center; gap: 8px">
-            <button id="orbit-speed-btn" class="btn-compact" type="button" style="border-color: rgba(56, 189, 248, 0.65); color: #bae6fd">
-              ⚡ 배속: 1×
-            </button>
+          <div class="orbit-header-actions">
+            <div class="orbit-mode-switch">
+              <button id="orbit-mode-earth-btn" class="orbit-mode-btn active" type="button">🌍 지구·달 궤도</button>
+              <button id="orbit-mode-solar-btn" class="orbit-mode-btn" type="button">🪐 태양계 전체 보기</button>
+            </div>
             <button id="close-orbit-modal-btn" class="btn-compact" type="button">✕ 닫기 (Esc)</button>
           </div>
         </div>
 
         <div id="orbit-monitor-viewport">
           <canvas id="orbit-monitor-canvas"></canvas>
+          <div id="orbit-planet-labels"></div>
           <div id="orbit-pass-hud">
-            <div style="display: flex; align-items: center; gap: 6px">
-              <span id="orbit-pass-badge" class="badge badge-warn">교신 대기</span>
-              <strong id="orbit-pass-tx-pct" style="color: #6ee7b7; font-family: monospace">0%</strong>
-            </div>
-            <div id="orbit-pass-detail" style="font-size: 11px; color: #93c5fd">
-              지상 관제국 교신 가능 구간(녹색 호) 진입 시 송신 가능
-            </div>
+            <span id="orbit-pass-status-dot" class="legend-dot" style="background: #94a3b8"></span>
+            <span id="orbit-pass-status-text">⚪ 교신 대기 중</span>
+            <strong id="orbit-pass-timer-text" style="color: #fde68a; font-family: monospace"></strong>
           </div>
-          <div id="orbit-ground-label">📡 지상 관제국 (GROUND STATION)</div>
+          <div id="orbit-ground-label">📡 지상 관제국 (GROUND CONTROL)</div>
           <div id="orbit-marker-label">
             <div class="marker-title" id="ui-orbit-marker-title">🛰️ SUNCATCHER / 현재 위치</div>
             <div class="marker-dir" id="ui-orbit-marker-dir">진행 방향 ➔</div>
           </div>
+          <div id="orbit-solar-pip-badge">🪐 태양계 미니맵 (클릭하여 확대)</div>
         </div>
 
         <div class="orbit-modal-footer">
           <div class="orbit-legend-Group">
             <span class="orbit-legend-item">
               <span class="legend-dot" style="background: #10b981; box-shadow: 0 0 8px #10b981"></span>
-              <span id="ui-orbit-legend-rev">녹색 궤도 호: 지상국 교신 가능 구간</span>
+              <span id="ui-orbit-legend-rev">기지 공전: 650km 궤도 이동</span>
             </span>
             <span class="orbit-legend-item">
               <span class="legend-dot" style="background: #38bdf8; box-shadow: 0 0 8px #38bdf8"></span>
-              <span id="ui-orbit-legend-spin">기지 위치·교신 가능 여부·남은 시간 단일 시뮬레이션 동기화</span>
+              <span id="ui-orbit-legend-spin">지구 자전: 자전축 회전</span>
             </span>
           </div>
-          <span id="ui-orbit-legend-sync" style="color: #93c5fd">창밖 지구 풍경 및 송신 상태와 실시간 연동됨</span>
+          <span id="ui-orbit-legend-sync" style="color: #93c5fd">창밖 지구 풍경과 실시간 동기화됨</span>
         </div>
       </div>
     </div>
 
-    <!-- GEMINI LYRIA MUSIC GENERATION STUDIO MODAL -->
+    <!-- GEMINI LYRIA MUSIC GENERATION STUDIO & PLAYLIST MODAL -->
     <div id="lyria-modal" class="interactive">
       <div class="lyria-modal-card">
         <div class="orbit-modal-header">
           <div class="orbit-modal-title-group">
             <div id="ui-lyria-modal-title" style="font-size: 16px; font-weight: 800; color: #f0f9ff">
-              🎼 Gemini Lyria 우주 음악 생성 스튜디오
+              🎼 Gemini Lyria 우주 음악 스튜디오 & 플레이리스트
             </div>
             <div id="ui-lyria-modal-meta" style="font-size: 11.5px; font-weight: 600; color: #7dd3fc">
-              POST /v1beta/interactions · GEMINI_API_KEY 연동 · 실시간 MP3 생성/재생/다운로드
+              POST /v1beta/interactions · GEMINI_API_KEY 연동 · 연속 랜덤 프롬프트 플레이리스트
             </div>
           </div>
           <button id="close-lyria-modal-btn" class="btn-compact" type="button">✕ 닫기</button>
+        </div>
+
+        <!-- CONTINUOUS RANDOM PROMPT PLAYLIST CONTROLS & QUEUE -->
+        <div class="lyria-playlist-box">
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap">
+            <span id="ui-lyria-playlist-title" style="font-size: 12px; font-weight: 800; color: #38bdf8">
+              🎵 현재 우주 BGM 플레이리스트
+            </span>
+            <div style="display: flex; gap: 6px; flex-wrap: wrap">
+              <button id="lyria-playlist-mode-btn" class="btn-compact lyria-mode-btn-active" type="button">
+                🔀 연속 플레이리스트 모드 (자동 다음 곡 & 백그라운드 랜덤 생성)
+              </button>
+              <button id="lyria-skip-next-btn" class="btn-compact" type="button">
+                ⏭ 다음 곡 재생
+              </button>
+            </div>
+          </div>
+
+          <div id="lyria-playlist-items" class="lyria-playlist-items"></div>
+
+          <button id="lyria-random-gen-btn" class="btn-gold" type="button" style="width: 100%; font-size: 12px; padding: 7px 10px">
+            🎲 랜덤 우주 프롬프트로 새 곡 추가
+          </button>
         </div>
 
         <div style="display: flex; flex-direction: column; gap: 6px">
@@ -1579,19 +1791,20 @@
             <button id="lyria-preset-ambient" class="preset-btn" type="button">🌌 650km 궤도 앰비언트</button>
             <button id="lyria-preset-vocal" class="preset-btn" type="button">🎤 스타라이트 보컬 송</button>
             <button id="lyria-preset-pulse" class="preset-btn" type="button">⚡ 무중력 레이저 정렬 펄스</button>
+            <button id="lyria-preset-random" class="preset-btn" type="button">🎲 랜덤 테마 프롬프트 뽑기</button>
           </div>
-          <textarea id="lyria-prompt-input" rows="3">Ambient sci-fi space station synthesizer soundtrack, 650km dawn-dusk orbit over Earth, warm analog pads, subtle crystalline arpeggios, calm zero-gravity exploration mood, 84 BPM, high fidelity stereo</textarea>
+          <textarea id="lyria-prompt-input" rows="2">Ambient sci-fi space station synthesizer soundtrack, 650km dawn-dusk orbit over Earth, warm analog pads, subtle crystalline arpeggios, calm zero-gravity exploration mood, 84 BPM, high fidelity stereo</textarea>
         </div>
 
         <button id="lyria-generate-btn" class="btn-primary" type="button" style="width: 100%">
-          🎼 Lyria 음악 생성하기
+          🎼 이 프롬프트로 새 곡 생성 및 플레이리스트 추가
         </button>
 
         <div
           id="lyria-status-text"
           style="font-size: 11.5px; color: #93c5fd; background: rgba(2, 6, 18, 0.65); padding: 8px 10px; border-radius: 8px;"
         >
-          검증된 Lyria Interactions REST API가 연결되었습니다.
+          검증된 Lyria Interactions REST API 및 연속 플레이리스트 모드가 활성화되었습니다.
         </div>
 
         <div class="lyria-audio-box" id="lyria-result-box">
@@ -1601,7 +1814,7 @@
           </div>
           <audio id="lyria-audio-player" controls preload="metadata" src="/audio/lyria-bgm-latest.mp3"></audio>
           <div class="lyria-actions-row">
-            <button id="lyria-apply-bgm-btn" class="btn-compact" type="button">🔊 인게임 BGM으로 재생</button>
+            <button id="lyria-apply-bgm-btn" class="btn-compact" type="button">🔊 이 곡 지금 재생</button>
             <a
               id="lyria-download-link"
               href="/audio/lyria-bgm-latest.mp3"

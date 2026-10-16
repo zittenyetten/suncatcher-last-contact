@@ -1,0 +1,21 @@
+Suncatcher: Last Contact
+Team Argon
+
+Suncatcher: Last Contact is a browser-based 3D orbital repair game prototype. After a micrometeoroid impact damages a space station's optical relay, the player works with the AI companion Argon to prepare a replacement reflector and reconnect the laser path.
+
+The core interaction turns AI-assisted creation into a physical object inside the game: inspect a reflector design, approve it, load and mount its 3D model, and adjust its yaw and pitch until the reflected beam reaches the receiver. Visible light paths and alignment feedback make the repair easy to understand. An interactive orbital monitor adds an Earth, Moon, and Sun view, while saved Lyria-generated music supports the atmosphere.
+
+Built with Three.js, Node.js, and Fastify, the prototype includes English and Korean interfaces, a server-side Gemini dialogue integration with fallback mission guidance, and optional browser speech input and output. The cloud build uses included reflector previews and verified GLB presets so the core experience does not depend on fresh asset generation for every visitor. Antigravity supported development and asset creation.
+
+This hackathon prototype demonstrates the optical-repair loop. The extended communication-window, rescue-transmission, and return-to-airlock story is still in development. The video is an edited recording of the local prototype and identifies its pre-generated asset preparation.
+
+Google Cloud demo (temporary event deployment):
+https://argon-suncatcher-1018540534.asia-northeast3.run.app/
+
+Public GitHub repository:
+https://github.com/zittenyetten/suncatcher-last-contact
+
+Demo video (Google Drive):
+https://drive.google.com/file/d/1kTdhL3qB1Z2sIj1qfCBg2vaB4efmS1KA/view?usp=sharing
+
+Hosting note: The organizers will remove the temporary event account and Google Cloud project after the event. The public repository and recorded demo preserve the project beyond that deployment.

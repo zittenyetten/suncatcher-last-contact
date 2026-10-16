@@ -1,80 +1,67 @@
 # Suncatcher: Last Contact
 
-**Team Argon · Google DeepMind AI Hackathon · October 16, 2026**
+**Team Argon — Google DeepMind AI Hackathon, October 16, 2026**
 
-A browser-based 3D orbital repair prototype. A damaged optical relay leaves an EVA technician relying on Argon, an AI companion, to prepare a replacement reflector and reconnect the station's laser path.
+A browser-based 3D orbital repair prototype. Help Argon prepare and mount a replacement reflector, then reconnect a damaged station's laser path through manual beam alignment.
 
-## Links
+## Project links
 
-- Public application: **PENDING — insert a verified public HTTPS URL**
-- Demo video: **PENDING — insert an accessible video URL**
-- Source repository: https://github.com/zittenyetten/suncatcher-last-contact
-- Google Cloud project: `h2gdm-hack26icn-2676`
+- [Google Cloud demo — temporary event deployment](https://argon-suncatcher-1018540534.asia-northeast3.run.app/)
+- [Demo video — Google Drive](https://drive.google.com/file/d/1kTdhL3qB1Z2sIj1qfCBg2vaB4efmS1KA/view?usp=sharing)
+- [Source repository](https://github.com/zittenyetten/suncatcher-last-contact)
 
-## What the prototype contains
+The event account and Google Cloud project are scheduled for deletion after the event, according to the organizer notice relayed by the project owner. The hosted URL will not be a permanent demo. No deployment to a personal Cloud project is planned or authorized. Continue locally using this repository and the recorded demo.
 
-- A Three.js station scene with first-person movement and direct reflector manipulation.
-- Korean and English interfaces.
-- Reflector concept previews, approval, 3D asset generation/loading, and mounting.
-- Optical reflection feedback based on the reflector's yaw and pitch.
-- Contextual Argon conversation, with browser speech input/output where supported.
-- An orbital monitor interface and a configurable Lyria music interface.
+## Implemented core
 
-Generated reflector geometry is displayed as a real GLB asset. Different reflector appearances currently share the same alignment rule; the prototype does not simulate a different optical performance for each generated shape.
+- Three.js orbital scene, English/Korean UI, and direct reflector manipulation.
+- Reflector design previews, approval, GLB loading, mounting, and yaw/pitch controls.
+- Visible incident/reflected beams with optical alignment feedback.
+- An interactive Earth/Moon/Sun monitor and solar-system view using a local orbital simulation.
+- Argon text assistance, optional browser speech input/output, and saved Lyria music playback.
 
-## Status of the Last Contact mission
+The current source has incomplete Last Contact story hooks. Do not treat the communication window, rescue transmission, and return sequence as a completed end-to-end mission. The handover documents the missing runtime references, anonymous-session collision, and a keyless validation failure. These are preserved as development work, not silently declared fixed.
 
-The intended mission is to repair the relay, transmit a rescue request during a ground-station pass, receive return clearance, and enter the airlock. The latest source includes story text, transmission UI, and backend mission fields. **A complete manual run of that new story sequence remains a submission verification item.** This draft does not claim that sequence has passed end-to-end testing.
+## AI implementation
 
-The core reflector preparation and alignment flow is distinct from that pending story verification. Automated demonstration mode is available in the code; it should be identified as a demonstration, not recorded as manual play.
-
-## AI and technology disclosure
-
-| Component | Implementation and evidence boundary |
+| Component | Current behavior |
 | --- | --- |
-| Runtime Argon conversation | The server invokes the authenticated `agy` CLI, configured in code with `gemini-3.8-flash-low`. Responses are plain text; the browser handles speech recognition and speech synthesis. A configured API key does not itself verify a Gemini Live API session. |
-| Reflector generation | A server pipeline requests Three.js geometry code, validates it, and exports a GLB. Fast demonstration mode loads previously generated, verified geometry assets instead of performing a fresh model call. |
-| Design previews | Included concept assets have local provenance labels identifying Antigravity image generation / Nano Banana. The default preview path can reuse those assets; arbitrary live image editing is not implied. |
-| Music | The source includes Lyria generation UI and a server API route for `lyria-3-clip-preview` / `lyria-3.5`. Fresh generation requires a working server-side key and endpoint access. Existing music playback and a successful fresh generation are separate claims. |
-| Development and assets | Antigravity-assisted development and previously generated assets are part of the development workflow. They should be distinguished from calls made while a judge plays. |
-| Game and server | Three.js, Node.js, Fastify, JavaScript modules, GLB assets. |
+| Argon dialogue | Attempts a server-side Gemini REST request, then an available Windows Antigravity CLI, then fixed mission guidance. Fresh AI responses require valid service access. |
+| Reflector assets | Production/Linux and the default safe path load included verified GLB presets. Optional Windows development generation uses the CLI and is disabled unless explicitly enabled. |
+| Design previews | Existing generated concept images are included. Reusing one is not a fresh image-generation call. |
+| Music | Included Lyria-generated tracks and playlist; optional server-side fresh generation requires a valid API key and model access. |
+| Development | Antigravity-assisted development and generated assets are distinct from runtime AI calls. |
 
-Model identifiers above describe the current configuration and local provenance, not an independent certification of model availability.
+Model strings and stored provenance describe configuration, not independently verified future model availability. The game does not evaluate a generated reflector shape as an engineering-grade optical design.
 
-## Run locally
+## Continue locally
 
-From the repository root:
+Use Node.js 22 or a compatible supported version. From this checkout:
 
 ```powershell
-npm install
-npm start
+npm.cmd ci
+$env:PORT = '59013'
+$env:HOST = '127.0.0.1'
+$env:NODE_ENV = 'production'
+npm.cmd start
 ```
 
-Open `http://127.0.0.1:59012/`. The server reads `PORT` and `HOST`; its current defaults are port `59012` and host `0.0.0.0`.
+Open http://127.0.0.1:59013/. The alternate port avoids the original development server on 59012. Production mode selects cached reflector assets. Optional dialogue/music actions may still attempt external services; do not supply a key unless you intend to use those services.
 
-The existing assets must be included in `artifacts/` and `public/audio/`. Live dialogue and normal 3D generation depend on the workstation's authenticated `agy` CLI. Lyria generation requires a server-side `GEMINI_API_KEY`. Do not commit keys, authentication files, or `.env` files.
+The source loads `.env` for optional credentials. `PORT` and `HOST` are read before that loader runs, so set them in the launching shell. `.env.example` contains placeholders only. Never commit real API keys, credentials, agent sessions, or service-account files.
 
-Local workstation authentication is not automatically available in a cloud container. The submitted public build must be tested independently, including the exact AI actions advertised to judges.
+Keep the supplied `artifacts/designs`, baseline model families, and `public/audio` files with the application. The video demonstrates an edited local run, with pre-generated preparation labeled. It does not prove the unfinished story sequence or the current Cloud revision works end to end.
 
-## Controls
+## Development status and verification
 
-- Left-drag: look around.
-- WASD / arrow keys: move; Space: jump; C: center the view.
-- E or the mounting control: mount a prepared reflector.
-- Right-drag, sliders, or Q/R and F/G: adjust reflector yaw/pitch.
-- V or the voice control: talk to Argon where browser speech recognition is supported.
-- Use the language control to switch to English.
+See [development handover](docs/HANDOVER.md) for the exact source snapshot, reproduction steps, folder roles, and next tasks. The original Antigravity folder is separate from this Git checkout; edits there do not automatically update this repository.
 
-## Verification
+Syntax checks pass for the inspected modules. Offline unit checks pass five of six child tests without a key; the remaining test receives 500 rather than the expected 400 for an empty music prompt. With a non-real placeholder key and all fetch calls blocked, all six child tests pass. This is validation evidence, not a live AI integration test.
 
-The repository provides `npm test`, `npm run verify:3d`, and `npm run verify:e2e`. These commands were **not rerun while preparing this submission draft**. Some verification paths can generate assets or call external services. Older verification results should not be treated as proof of the latest story flow or public deployment.
+`npm.cmd test` runs the current unit tests. Browser verification scripts need review before reuse; some are stale and some can invoke AI services. Do not enable unsafe generated-code evaluation on a public server. The artifact folder is publicly served, so keep private QA output elsewhere.
 
-Before submission, complete a manual run on the exact submitted build and verify the public application, repository, and video links from an unauthenticated browser.
+- [Submission description](docs/SUBMISSION.txt)
+- [Account and asset continuity](docs/ACCOUNT-CONTINUITY.txt)
+- [Publication snapshot notes](PACKAGE-NOTES.md)
 
-## Current boundaries
-
-- The orbital panel can fetch external orbital data and uses simplified local propagation. It is not a precision real-time tracking service; gameplay communication windows are not claimed to be physically accurate predictions.
-- Generated appearance is not a physically evaluated reflector design.
-- Speech support and microphone access depend on the browser.
-- Pass-window transmission, ground clearance, and return footage must be verified before being presented as completed gameplay.
-
+No new Cloud deployment, account transfer, billing change, or credential replacement is included in this source update.

@@ -1,0 +1,28 @@
+SUN CATCHER CONTINUITY — 2026-10-16
+
+The project owner reports that the temporary DeepMind account AND event Google Cloud project will be deleted after the event, with no recovery. Preserve the files before 17:00 Korea time. The owner explicitly requested NO deployment to a personal Cloud project.
+
+Completed preservation targets:
+- Public source repository: https://github.com/zittenyetten/suncatcher-last-contact
+- Local Git checkout: C:\Codex\Projects\suncatcher-last-contact-publish
+- Original development files: C:\Codex\Projects\argon-suncatcher
+- Independent offline backup: C:\Codex\Backups\suncatcher-20261016 (see its manifest for exact contents and verification)
+- Demo video: https://drive.google.com/file/d/1kTdhL3qB1Z2sIj1qfCBg2vaB4efmS1KA/view?usp=sharing
+
+Continue locally. The temporary Cloud Run URL will no longer be a dependable live demo after the event project is deleted. Git preserves committed source and included assets; it does not keep a deployed service, API entitlement, billing account, authentication, or Antigravity conversation history alive.
+
+Open the Git checkout in the IDE under a permanent account when ready. Read docs/HANDOVER.md, reconcile any original-folder edits made after the saved snapshot, and run the local commands there. Maintain one working checkout thereafter. A Git push does not redeploy Cloud Run.
+
+The saved images, models, and music can be used without regenerating them. Fresh AI dialogue, music, and optional development generation require independently authorized service access. Leave optional keys unset for basic local asset use. Temporary credentials should not be copied into Git or treated as a lasting access method.
+
+The MP4 is retained locally as well as on Drive. Its existing Drive sharing was verified as anyone-with-link reader before this handover. Keep the local copy even when a shared link works. Useful agent decisions and unfinished work are documented in HANDOVER.md; a full export of every Antigravity conversation is not included.
+
+No Cloud deployment, IAM change, billing change, secret replacement, account deletion, or ownership transfer was performed during this preservation task.
+
+Official background:
+- Cloud Run deployer and runtime identity: https://docs.cloud.google.com/run/docs/securing/service-identity
+- Project IAM access: https://docs.cloud.google.com/iam/docs/granting-changing-revoking-access
+- Project billing: https://docs.cloud.google.com/billing/docs/how-to/modify-project
+- Gemini API keys and their projects: https://ai.google.dev/gemini-api/docs/api-key
+
+The event's deletion schedule comes from the project owner's organizer notice, not a generic inference from these documentation pages.
